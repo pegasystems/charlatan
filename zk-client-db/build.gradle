@@ -1,13 +1,5 @@
-group 'com.pega'
-version '0.1'
-
-apply plugin: 'java'
-apply plugin: 'maven'
-
-repositories {
-    mavenCentral()
-    mavenLocal()
-}
+group projectGroup
+version projectVersion
 
 dependencies {
     compile project(':zookeeper-db')

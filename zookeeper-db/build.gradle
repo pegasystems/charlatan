@@ -1,12 +1,5 @@
-version '1.0-SNAPSHOT'
-
-apply plugin: "maven"
-apply plugin: 'java'
-
-repositories {
-    mavenCentral()
-    mavenLocal()
-}
+version=projectVersion
+group=projectGroup
 
 dependencies {
     compile group: 'org.slf4j', name: 'slf4j-api', version: '1.7.25'
