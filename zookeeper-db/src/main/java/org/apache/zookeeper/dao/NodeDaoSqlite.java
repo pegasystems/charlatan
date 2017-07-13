@@ -10,7 +10,7 @@ import java.util.List;
 /**
  * Created by natalia on 7/11/17.
  */
-public class NodeDaoImpl implements NodeDao {
+public class NodeDaoSqlite implements NodeDao {
 
 	static {
 		try {
@@ -23,7 +23,7 @@ public class NodeDaoImpl implements NodeDao {
 
 	private String db;
 
-	public NodeDaoImpl(String db) {
+	public NodeDaoSqlite(String db) {
 		this.db = db;
 	}
 

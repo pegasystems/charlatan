@@ -10,15 +10,15 @@ import org.junit.runners.MethodSorters;
 import static org.junit.Assert.*;
 
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
-public class NodeDaoImplTest {
+public class NodeDaoSqliteTest {
 
-	private static NodeDaoImpl dao;
+	private static NodeDaoSqlite dao;
 
 	private Node TEST_NODE = new Node("/test/path", null, CreateMode.PERSISTENT);
 
 	@BeforeClass
 	public static void setupDb() {
-		dao = new NodeDaoImpl(System.currentTimeMillis() + ".db");
+		dao = new NodeDaoSqlite(System.currentTimeMillis() + ".db");
 		dao.setup();
 	}
 
