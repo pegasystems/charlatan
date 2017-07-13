@@ -19,7 +19,7 @@
 package org.apache.zookeeper;
 
 import org.apache.zookeeper.dao.NodeDao;
-import org.apache.zookeeper.dao.NodeDaoImpl;
+import org.apache.zookeeper.dao.NodeDaoSqlite;
 import org.apache.zookeeper.dao.RecordNotFoundException;
 import org.apache.zookeeper.dao.bean.Node;
 import org.apache.zookeeper.data.ACL;
@@ -27,7 +27,6 @@ import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -36,13 +35,13 @@ import java.util.concurrent.Executors;
 public class ZooKeeper {
 
 	// TODO: inject or load from config
-	private NodeDao nodeDao = new NodeDaoImpl( "/home/natalia/test.db" );
+	private NodeDao nodeDao = new NodeDaoSqlite( "/home/natalia/test.db" );
 
 	private Logger logger = LoggerFactory.getLogger(ZooKeeper.class.getName());
 	private ExecutorService executor;
 
 	public ZooKeeper(String connectString, int sessionTimeout, Watcher watcher) {
-		executor = Executors.newSingleThreadExecutor();
+		executor = Executors.newCachedThreadPool();
 	}
 
 	public void close() {
@@ -113,9 +112,9 @@ public class ZooKeeper {
 		{
 			try {
 				byte[] data = getData(path, watch, null);
-				cb.processResult(0, path, ctx, data, new Stat());
+				cb.processResult(KeeperException.Code.OK.intValue(), path, ctx, data, new Stat());
 			} catch (KeeperException e) {
-				cb.processResult(-1, path, ctx, null, new Stat());
+				cb.processResult(KeeperException.Code.NONODE.intValue(), path, ctx, null, new Stat());
 			}
 		});
 
@@ -164,21 +163,21 @@ public class ZooKeeper {
 		{
 			try {
 				List<String> children = getChildren(path, watch);
-				cb.processResult(0, path, ctx, children);
+				cb.processResult(KeeperException.Code.OK.intValue(), path, ctx, children);
 			} catch (KeeperException e) {
-				cb.processResult(-1, path, ctx, null);
+				cb.processResult(KeeperException.Code.NONODE.intValue(), path, ctx, null);
 			}
 		});
 	}
 
-	public void create(String path, byte[] data, List<ACL> acl, CreateMode createMode, AsyncCallback.StringCallback cb, Object ctx) {
+	public void create(final String path, byte[] data, List<ACL> acl, CreateMode createMode, AsyncCallback.StringCallback cb, Object ctx) {
 		executor.submit(() ->
 		{
 			try {
 				String node = create(path, data, acl, createMode);
-				cb.processResult(0, path, ctx, node);
+				cb.processResult(KeeperException.Code.OK.intValue(), path, ctx, node);
 			} catch (KeeperException e) {
-				cb.processResult(-1, path, ctx, null);
+				cb.processResult(KeeperException.Code.NODEEXISTS.intValue(), path, ctx, null);
 			}
 		});
 	}
