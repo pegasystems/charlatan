@@ -2,6 +2,8 @@ package org.apache.zookeeper.dao;
 
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.dao.bean.Node;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.sql.*;
 import java.util.ArrayList;
@@ -20,6 +22,8 @@ public class NodeDaoSqlite implements NodeDao {
 			System.exit(0);
 		}
 	}
+
+	private static Logger logger = LoggerFactory.getLogger(NodeDaoSqlite.class.getName());
 
 	private String db;
 
@@ -47,10 +51,10 @@ public class NodeDaoSqlite implements NodeDao {
 			parentKey = getNodeKey(node.getParent());
 		}
 
-		StringBuilder sql = new StringBuilder( "INSERT INTO nodes(fk, name, data, timestamp" );
+		StringBuilder sql = new StringBuilder( "INSERT INTO nodes(fk, name, data, timestamp, session" );
 		if( node.getMode() != null )
 			sql.append(",mode");
-		sql.append(" ) VALUES(?,?,?,?");
+		sql.append(" ) VALUES(?,?,?,?,?");
 		if( node.getMode() != null )
 			sql.append(",?");
 		sql.append(" )");
@@ -61,9 +65,10 @@ public class NodeDaoSqlite implements NodeDao {
 				ps.setString(2, node.getPath());
 				ps.setBytes(3, node.getData());
 				ps.setLong(4, System.currentTimeMillis());
+				ps.setLong(5, node.getOwnerSession());
 
 				if( node.getMode() != null )
-				   	ps.setString(5, node.getMode().name());
+				   	ps.setString(6, node.getMode().name());
 
 				return ps.executeUpdate() > 0;
 			}
@@ -92,7 +97,21 @@ public class NodeDaoSqlite implements NodeDao {
 		} catch (SQLException e) {
 			throw new DataAccessException(e);
 		}
+	}
 
+	@Override
+	public void deleteEphemeralNodes(long session) {
+		String sql = "DELETE FROM nodes WHERE mode=? and session=?";
+
+		try (Connection c = getConnection()) {
+			try (PreparedStatement ps = c.prepareStatement(sql)) {
+				ps.setString(1, CreateMode.EPHEMERAL.name());
+				ps.setLong(2, session);
+				ps.executeUpdate();
+			}
+		} catch (SQLException e) {
+			throw new DataAccessException(e);
+		}
 	}
 
 	@Override
@@ -140,7 +159,6 @@ public class NodeDaoSqlite implements NodeDao {
 	@Override
 	public List<String> getChildren(Node node) throws RecordNotFoundException {
 		String sql = "SELECT name FROM nodes WHERE fk=?";
-
 		int key = getNodeKey(node);
 
 		try (Connection c = getConnection()) {
@@ -149,16 +167,22 @@ public class NodeDaoSqlite implements NodeDao {
 				ResultSet rs = ps.executeQuery();
 				List<String> children = new ArrayList<>();
 				while (rs.next()) {
-					children.add(rs.getString("name"));
+					String fullPath = rs.getString("name");
+					String nodeName = fullPath.substring(node.getPath().length()+ 1);
+					children.add(nodeName);
+
 				}
 				return children;
 			}
 		} catch (SQLException e) {
+			logger.error("GetChildren error",e);
 			throw new DataAccessException(e);
 		}
 	}
 
 	protected int getNodeKey(Node node) throws RecordNotFoundException {
+
+		logger.debug("Get node key for node " + node.getPath() );
 		String sql = "SELECT pk FROM nodes WHERE name = ? ";
 
 		try (Connection c = getConnection()) {
@@ -173,9 +197,13 @@ public class NodeDaoSqlite implements NodeDao {
 			throw new DataAccessException(e);
 		}
 
+		logger.debug("No node found " + node.getPath() );
 		throw new RecordNotFoundException(node.getPath() + " not found");
 	}
 
+	/**
+	 * Temporary for quick test
+	 */
 	protected void setup() {
 		String createTable = "CREATE TABLE IF NOT EXISTS `nodes` (  `pk` integer PRIMARY KEY, `fk` integer NULL,  \n" +
 				"`name` text NOT NULL, \n" +
@@ -183,6 +211,7 @@ public class NodeDaoSqlite implements NodeDao {
 				"`version` integer NOT NULL DEFAULT 1,\n" +
 				"`timestamp`  long NOT NULL,\n" +
 				"`mode` text NOT NULL default 'PERSISTENT', \n" +
+				"`session` integer, \n" +
 				"FOREIGN KEY (fk) REFERENCES nodes(pk) ON DELETE CASCADE, UNIQUE(name) );";
 
 		String insertRoot = "INSERT INTO nodes (name,timestamp) VALUES (\"/\",?)";

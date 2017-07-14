@@ -4,6 +4,9 @@ import org.I0Itec.zkclient.exception.ZkException;
 import org.I0Itec.zkclient.exception.ZkInterruptedException;
 import org.I0Itec.zkclient.exception.ZkNoNodeException;
 import org.I0Itec.zkclient.exception.ZkNodeExistsException;
+import org.I0Itec.zkclient.serialize.JsonSerializer;
+import org.I0Itec.zkclient.serialize.SerializableSerializer;
+import org.I0Itec.zkclient.serialize.StringSerializer;
 import org.I0Itec.zkclient.serialize.ZkSerializer;
 import org.apache.zookeeper.*;
 import org.apache.zookeeper.data.ACL;
@@ -22,6 +25,7 @@ public class ZkClient implements Watcher {
 	private Logger logger = LoggerFactory.getLogger(ZkClient.class.getName());
 	private IZkConnection connection;
 	private long operationRetryTimeoutInMillis;
+	private ZkSerializer serializer;
 
 	public ZkClient(IZkConnection zkConnection, int connectionTimeout, ZkSerializer zkSerializer) {
 		this(zkConnection, connectionTimeout, zkSerializer, -1);
@@ -31,6 +35,7 @@ public class ZkClient implements Watcher {
 		this.connection = zkConnection;
 		this.operationRetryTimeoutInMillis = operationRetryTimeout;
 
+		this.serializer = new StringSerializer();
 		connection.connect(null);
 	}
 
@@ -44,7 +49,7 @@ public class ZkClient implements Watcher {
 	}
 
 	public void close() {
-
+		connection.close();
 	}
 
 	public void deleteRecursive(String dir) {
@@ -53,10 +58,9 @@ public class ZkClient implements Watcher {
 
 	public boolean exists(String path) {
 		try {
-			logger.info( "Connection" + connection );
 			return connection.exists(path, false);
 		} catch (Exception e) {
-			logger.error( "Path doesn't exist " + path, e );
+			logger.error("Error while checking path " + path, e);
 		}
 
 		return false;
@@ -67,28 +71,28 @@ public class ZkClient implements Watcher {
 	}
 
 	private byte[] serialize(Object object) {
-		try {
-			return object.toString().getBytes("UTF-8");
-		} catch (UnsupportedEncodingException e) {
-			throw new ArgumentRuntimeException("Unsupported encoding");
+
+		if (object == null) {
+			return null;
 		}
+
+		return serializer.serialize(object);
 	}
 
 	private <T extends Object> T deserialize(byte[] data) {
 		if (data == null) {
 			return null;
 		}
-		try {
-			return (T) new String(data, "UTF-8");
-		} catch (UnsupportedEncodingException e) {
-			throw new ArgumentRuntimeException("Unsupported encoding");
-		}
+
+		return (T)serializer.deserialize(data);
 	}
 
 	public Stat writeDataReturnStat(final String path, Object data, final int expectedVersion) {
 		try {
 			return connection.writeDataReturnStat(path, serialize(data), expectedVersion);
-		} catch (Exception e) {
+		} catch (KeeperException e) {
+			throw ZkException.create(e);
+		} catch (InterruptedException e) {
 			throw new ArgumentRuntimeException(e);
 		}
 	}
@@ -133,21 +137,20 @@ public class ZkClient implements Watcher {
 	 * Create a persistent node.
 	 */
 	public void createPersistent(String path, Object data, List<ACL> acl) {
-		try {
-			connection.create(path,serialize(data), acl, null);
-		} catch (KeeperException e) {
-			throw ZkException.create(e);
-		}
+		create(path, serialize(data), acl, CreateMode.PERSISTENT);
 	}
 
 	public void createPersistent(String path, boolean createParents, List<ACL> acl) throws ZkInterruptedException, IllegalArgumentException, ZkException {
 		try {
-			connection.create(path, null, CreateMode.PERSISTENT);
-		} catch (KeeperException e) {
+			create(path, null, acl, CreateMode.PERSISTENT);
+		} catch (ZkNodeExistsException e) {
 			if (!createParents) {
-				throw ZkException.create(e);
+				throw e;
 			}
-
+		} catch (ZkNoNodeException e) {
+			if (!createParents) {
+				throw e;
+			}
 			String parentDir = path.substring(0, path.lastIndexOf('/'));
 			createPersistent(parentDir, createParents, acl);
 			createPersistent(path, createParents, acl);
@@ -157,22 +160,22 @@ public class ZkClient implements Watcher {
 	/**
 	 * Create a persistent, sequential node and set its ACL.
 	 */
-	public String createPersistentSequential(String path, Object data, List<ACL> acl) throws  IllegalArgumentException, ZkException {
-		try {
-			connection.create(path, null, CreateMode.PERSISTENT_SEQUENTIAL);
-		} catch (KeeperException e) {
-			throw ZkException.create(e);
-		}
-
+	public String createPersistentSequential(String path, Object data, List<ACL> acl) throws IllegalArgumentException, ZkException {
+		create(path, data, acl, CreateMode.PERSISTENT_SEQUENTIAL);
 		return path;
 	}
 
 	/**
 	 * Create an ephemeral node.
 	 */
-	public void createEphemeral(final String path, final Object data, final List<ACL> acl) throws  IllegalArgumentException, ZkException {
+	public void createEphemeral(final String path, final Object data, final List<ACL> acl) throws IllegalArgumentException, ZkException {
+		create(path, data, acl, CreateMode.EPHEMERAL);
+	}
+
+
+	private void create(final String path, final Object data, final List<ACL> acl, final CreateMode mode) {
 		try {
-			connection.create(path, null, CreateMode.EPHEMERAL);
+			connection.create(path, serialize(data), mode);
 		} catch (KeeperException e) {
 			throw ZkException.create(e);
 		}

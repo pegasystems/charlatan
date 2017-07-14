@@ -6,6 +6,10 @@ import org.junit.BeforeClass;
 import org.junit.FixMethodOrder;
 import org.junit.Test;
 import org.junit.runners.MethodSorters;
+import org.junit.runners.model.TestTimedOutException;
+
+import java.util.Arrays;
+import java.util.List;
 
 import static org.junit.Assert.*;
 
@@ -13,6 +17,7 @@ import static org.junit.Assert.*;
 public class NodeDaoSqliteTest {
 
 	private static NodeDaoSqlite dao;
+	private static String session;
 
 	private Node TEST_NODE = new Node("/test/path", null, CreateMode.PERSISTENT);
 
@@ -20,6 +25,7 @@ public class NodeDaoSqliteTest {
 	public static void setupDb() {
 		dao = new NodeDaoSqlite(System.currentTimeMillis() + ".db");
 		dao.setup();
+		session = "test";
 	}
 
 	@Test(expected = RecordNotFoundException.class)
@@ -47,7 +53,14 @@ public class NodeDaoSqliteTest {
 	}
 
 	@Test
-	public void test5_Delete() {
+	public void test5_GetChildren() throws RecordNotFoundException {
+		dao.create( new Node(TEST_NODE.getPath() + "/child") );
+		List<String> childrenNodes = dao.getChildren(TEST_NODE);
+		assertEquals(Arrays.asList("child"), childrenNodes );
+	}
+
+	@Test
+	public void test6_Delete() {
 
 		dao.delete(TEST_NODE);
 		assertFalse(dao.exists(TEST_NODE));
@@ -56,6 +69,4 @@ public class NodeDaoSqliteTest {
 	public void testUpdate() {
 	}
 
-	public void testGetChildren() {
-	}
 }

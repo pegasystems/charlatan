@@ -127,6 +127,8 @@ public abstract class KeeperException extends Exception {
                 return new SessionMovedException();
             case NOTREADONLY:
                 return new NotReadOnlyException();
+            case NOWATCHER:
+                return new NoWatcherException();
             	
             case OK:
             default:
@@ -341,7 +343,9 @@ public abstract class KeeperException extends Exception {
         /** Session moved to another server, so operation is ignored */
         SESSIONMOVED (-118),
         /** State-changing request is passed to read-only server */
-        NOTREADONLY (-119);
+        NOTREADONLY (-119),
+        /** Attempts to remove a non-existing watcher */
+        NOWATCHER (-121);
 
         private static final Map<Integer,Code> lookup
             = new HashMap<Integer,Code>();
@@ -693,6 +697,19 @@ public abstract class KeeperException extends Exception {
     public static class UnimplementedException extends KeeperException {
         public UnimplementedException() {
             super(Code.UNIMPLEMENTED);
+        }
+    }
+
+    /**
+     * @see Code#NOWATCHER
+     */
+    public static class NoWatcherException extends KeeperException {
+        public NoWatcherException() {
+            super(Code.NOWATCHER);
+        }
+
+        public NoWatcherException(String path) {
+            super(Code.NOWATCHER, path);
         }
     }
 }

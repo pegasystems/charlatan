@@ -27,7 +27,7 @@ public interface IZkConnection {
 
     void connect(Watcher watcher);
 
-    void close() throws InterruptedException;
+    void close();
 
     String create(String path, byte[] data, CreateMode mode) throws KeeperException;
 

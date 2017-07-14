@@ -27,17 +27,16 @@ public class ZkConnection implements IZkConnection {
 
 	@Override
 	public void connect(Watcher watcher) {
-		zk = new ZooKeeper( null, 0, null );
+		zk = new ZooKeeper(null, 0, null);
 	}
 
 	@Override
-	public void close() throws InterruptedException {
-
+	public void close() {
+		zk.close();
 	}
 
 	@Override
 	public String create(String path, byte[] data, CreateMode mode) throws KeeperException {
-
 		return zk.create(path, data, null, mode);
 	}
 

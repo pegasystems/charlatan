@@ -15,6 +15,7 @@ public class Node {
 	private CreateMode mode;
 	private long timestamp;
 	private int version;
+	private long ownerSession;
 
 	public Node(String path) {
 		this(path, null);
@@ -33,6 +34,13 @@ public class Node {
 	}
 
 	public Node(String path, byte[] data, int version, long timestamp, CreateMode mode) {
+
+		if (path == null) {
+			throw new IllegalArgumentException("Path cannot be null");
+		}
+		if (path.length() == 0) {
+			throw new IllegalArgumentException("Path length must be > 0");
+		}
 
 		if (path.charAt(0) != SEP) {
 			throw new IllegalArgumentException("Path should start with '/' character");
@@ -114,5 +122,13 @@ public class Node {
 		}
 
 		return false;
+	}
+
+	public long getOwnerSession() {
+		return ownerSession;
+	}
+
+	public void setOwnerSession(long ownerSession) {
+		this.ownerSession = ownerSession;
 	}
 }

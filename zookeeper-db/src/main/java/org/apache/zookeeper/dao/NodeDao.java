@@ -31,9 +31,17 @@ public interface NodeDao {
 	 */
 	boolean delete(Node node);
 
+	void deleteEphemeralNodes(long session);
+
 	Node get(String path) throws RecordNotFoundException;
 
 	void update(Node node) throws RecordNotFoundException;
 
-	List<String> getChildren(Node node) throws RecordNotFoundException;
+	/**
+	 * Returns list of the children node names. Child node name is a relative name to the parent node.
+	 * @param parent
+	 * @return
+	 * @throws RecordNotFoundException
+	 */
+	List<String> getChildren(Node parent) throws RecordNotFoundException;
 }
