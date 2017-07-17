@@ -66,10 +66,13 @@ public class ZooKeeper {
 	}
 
 	/**
-	 * Create a node with the given path.
+	 * Create a node with the given path and data.
 	 * If a node with the same actual path already exists in the ZooKeeper, a
 	 * KeeperException with error code KeeperException.NodeExists will be
 	 * thrown.
+	 * <p>
+	 * If the parent node does not exist in the ZooKeeper, a KeeperException
+	 * with error code KeeperException.NoNode will be thrown.
 	 *
 	 * @param path
 	 * @param data
@@ -80,6 +83,7 @@ public class ZooKeeper {
 	public String create(String path, byte[] data, List<ACL> acl, CreateMode createMode) throws KeeperException {
 		final Node node = new Node(path, data, createMode);
 		node.setOwnerSession(session);
+
 		try {
 			if (nodeDao.create(node)) {
 				sendNewNodeEvents(node);
@@ -100,39 +104,79 @@ public class ZooKeeper {
 				String node = create(path, data, acl, createMode);
 				cb.processResult(KeeperException.Code.OK.intValue(), path, ctx, node);
 			} catch (KeeperException e) {
-				cb.processResult(KeeperException.Code.NODEEXISTS.intValue(), path, ctx, null);
+				cb.processResult(e.code().intValue(), path, ctx, null);
 			}
 		});
 	}
 
-	private void sendNewNodeEvents(Node node ){
-		WatchedEvent event = new WatchedEvent(Watcher.Event.EventType.NodeCreated, Watcher.Event.KeeperState.SyncConnected, node.getPath() );
+	/**
+	 * Notifies all watches of the node path that new node was created.
+	 * Notifies all watches of the parent node that node has new child.
+	 *
+	 * @param node
+	 */
+	private void sendNewNodeEvents(Node node) {
+		WatchedEvent event = new WatchedEvent(Watcher.Event.EventType.NodeCreated, Watcher.Event.KeeperState.SyncConnected, node.getPath());
 		watchesSender.send(event);
 
 		event = new WatchedEvent(Watcher.Event.EventType.NodeChildrenChanged, Watcher.Event.KeeperState.SyncConnected, node.getParent().getPath());
 		watchesSender.send(event);
 	}
+
 	/**
-	 * The version is ignored
+	 * Deletes the node with specified path and version.
+	 * <p>
+	 * A KeeperException with error code KeeperException.NoNode will be thrown
+	 * if the nodes does not exist.
+	 * <p>
+	 * A KeeperException with error code KeeperException.BadVersion will be
+	 * thrown if the given version does not match the node's version.
+	 * <p>
+	 * A KeeperException with error code KeeperException.NotEmpty will be thrown
+	 * if the node has children.
 	 *
 	 * @param path
 	 * @param version
 	 * @throws KeeperException
 	 */
 	public void delete(String path, int version) throws KeeperException {
-		Node node = new Node(path);
-		node.setVersion(version);
-		if (!nodeDao.delete(node)) {
+		try {
+			Node node = nodeDao.get(path);
+
+			if (version >= 0 && node.getVersion() != version) {
+				throw new KeeperException.BadVersionException(path);
+			}
+
+			List<String> children = nodeDao.getChildren(node);
+
+			if (children.size() > 0) {
+				throw new KeeperException.NotEmptyException(path);
+			}
+
+			node.setVersion(version);
+			nodeDao.delete(node);
+
+			WatchedEvent event = new WatchedEvent(Watcher.Event.EventType.NodeDeleted, Watcher.Event.KeeperState.SyncConnected, path);
+			watchesSender.send(event);
+
+			event = new WatchedEvent(Watcher.Event.EventType.NodeChildrenChanged, Watcher.Event.KeeperState.SyncConnected, node.getParent().getPath());
+			watchesSender.send(event);
+		} catch (RecordNotFoundException r) {
 			throw new KeeperException.NoNodeException(path);
 		}
-
-		WatchedEvent event = new WatchedEvent(Watcher.Event.EventType.NodeDeleted, Watcher.Event.KeeperState.SyncConnected, path);
-		watchesSender.send(event);
-
-		event = new WatchedEvent(Watcher.Event.EventType.NodeChildrenChanged, Watcher.Event.KeeperState.SyncConnected, node.getParent().getPath());
-		watchesSender.send(event);
 	}
 
+	/**
+	 * Returns the list of the children of the node of the given path.
+	 * <p>
+	 * A KeeperException with error code KeeperException.NoNode will be thrown
+	 * if no node with the given path exists.
+	 *
+	 * @param path
+	 * @param watch
+	 * @return
+	 * @throws KeeperException
+	 */
 	public List<String> getChildren(String path, boolean watch) throws KeeperException {
 		try {
 			List<String> children = nodeDao.getChildren(new Node(path));
@@ -148,12 +192,29 @@ public class ZooKeeper {
 		}
 	}
 
+	/**
+	 * Return the data and the stat of the node of the given path.
+	 * <p>
+	 * A KeeperException with error code KeeperException.NoNode will be thrown
+	 * if no node with the given path exists.
+	 *
+	 * @param path
+	 * @param watch
+	 * @param stat
+	 * @return
+	 * @throws KeeperException
+	 */
 	public byte[] getData(String path, boolean watch, Stat stat) throws KeeperException {
 		Node node = getNode(path, watch);
-		stat.setVersion(node.getVersion());
-		stat.setCtime(node.getTimestamp());
-		if (node.getMode() == CreateMode.EPHEMERAL) {
-			stat.setEphemeralOwner(node.getOwnerSession());
+
+
+		if (stat != null) {
+			stat.setVersion(node.getVersion());
+			stat.setCtime(node.getTimestamp());
+
+			if (node.getMode() == CreateMode.EPHEMERAL) {
+				stat.setEphemeralOwner(node.getOwnerSession());
+			}
 		}
 
 		if (watch) {
@@ -181,7 +242,7 @@ public class ZooKeeper {
 
 				cb.processResult(KeeperException.Code.OK.intValue(), path, ctx, node.getData(), stat);
 			} catch (KeeperException e) {
-				cb.processResult(KeeperException.Code.NONODE.intValue(), path, ctx, null, new Stat());
+				cb.processResult(e.code().intValue(), path, ctx, null, new Stat());
 			}
 		});
 
@@ -195,8 +256,26 @@ public class ZooKeeper {
 		}
 	}
 
+	/**
+	 * Set the data for the node of the given path if such a node exists and the
+	 * given version matches the version of the node (if the given version is
+	 * -1, it matches any node's versions).
+	 * <p>
+	 *
+	 * @param path
+	 * @param data
+	 * @param version
+	 * @return The stat of the node
+	 * @throws KeeperException
+	 */
 	public Stat setData(String path, byte[] data, int version) throws KeeperException {
 		try {
+			Node node = nodeDao.get(path);
+
+			if (version >= 0 && node.getVersion() != version) {
+				throw new KeeperException.BadVersionException(path);
+			}
+
 			nodeDao.update(new Node(path, data, version));
 		} catch (RecordNotFoundException e) {
 			throw new KeeperException.NoNodeException(path);
@@ -207,6 +286,14 @@ public class ZooKeeper {
 		return new Stat();
 	}
 
+	/**
+	 * Returns the stat of the node of the given path. Return null if no such a
+	 * node exists.
+	 *
+	 * @param path
+	 * @param watch
+	 * @return
+	 */
 	public Stat exists(String path, boolean watch) {
 		return exists(path, watch ? watchManager.getDefaultWatcher() : null);
 	}
@@ -221,8 +308,8 @@ public class ZooKeeper {
 			exists = true;
 
 			stat = new Stat();
-			if(node.getMode()==CreateMode.EPHEMERAL) {
-				stat.setEphemeralOwner( node.getOwnerSession() );
+			if (node.getMode() == CreateMode.EPHEMERAL) {
+				stat.setEphemeralOwner(node.getOwnerSession());
 			}
 			stat.setVersion(node.getVersion());
 			stat.setMtime(node.getTimestamp());
@@ -265,7 +352,7 @@ public class ZooKeeper {
 
 				cb.processResult(KeeperException.Code.OK.intValue(), path, ctx, children);
 			} catch (KeeperException e) {
-				cb.processResult(KeeperException.Code.NONODE.intValue(), path, ctx, null);
+				cb.processResult(e.code().intValue(), path, ctx, null);
 			}
 		});
 	}

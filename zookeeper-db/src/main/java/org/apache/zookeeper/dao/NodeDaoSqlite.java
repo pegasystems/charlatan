@@ -139,7 +139,7 @@ public class NodeDaoSqlite implements NodeDao {
 	}
 
 	@Override
-	public void update(Node node) throws RecordNotFoundException {
+	public void update(Node node) {
 		String sql = "UPDATE nodes SET data=?, version = version+1 WHERE name=? and version=?";
 
 		try (Connection c = getConnection()) {
@@ -147,9 +147,6 @@ public class NodeDaoSqlite implements NodeDao {
 				ps.setBytes(1, node.getData());
 				ps.setString(2, node.getPath());
 				ps.setInt(3, node.getVersion());
-				if (ps.executeUpdate() <= 0) {
-					throw new RecordNotFoundException(node.getPath() + " not found");
-				}
 			}
 		} catch (SQLException e) {
 			throw new DataAccessException(e);
@@ -212,7 +209,7 @@ public class NodeDaoSqlite implements NodeDao {
 				"`timestamp`  long NOT NULL,\n" +
 				"`mode` text NOT NULL default 'PERSISTENT', \n" +
 				"`session` integer, \n" +
-				"FOREIGN KEY (fk) REFERENCES nodes(pk) ON DELETE CASCADE, UNIQUE(name) );";
+				"FOREIGN KEY (fk) REFERENCES nodes(pk), UNIQUE(name) );";
 
 		String insertRoot = "INSERT INTO nodes (name,timestamp) VALUES (\"/\",?)";
 

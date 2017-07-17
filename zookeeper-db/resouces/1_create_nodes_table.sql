@@ -5,5 +5,5 @@ CREATE TABLE IF NOT EXISTS `nodes` (  `pk` integer PRIMARY KEY, `fk` integer NUL
 `timestamp`  long NOT NULL,
 `mode` text NOT NULL default 'PERSISTENT', 
 `session` integer,
-FOREIGN KEY (fk) REFERENCES nodes(pk) ON DELETE CASCADE, UNIQUE(name) );
+FOREIGN KEY (fk) REFERENCES nodes(pk), UNIQUE(name) );
 INSERT INTO nodes (name,timestamp) VALUES ("/",'1499865299000');

@@ -1,17 +1,16 @@
 package org.apache.zookeeper.dao;
 
-import javax.xml.crypto.Data;
 import java.sql.SQLException;
 
 /**
  * Created by natalia on 7/11/17.
  */
 public class DataAccessException extends RuntimeException {
-	public DataAccessException(SQLException e){
+	public DataAccessException(SQLException e) {
 		super(e);
 	}
 
-	public DataAccessException(String msg){
+	public DataAccessException(String msg) {
 		super(msg);
 	}
 }

@@ -18,24 +18,39 @@ public interface NodeDao {
 
 	/**
 	 * Stores node and node data.
-	 * If node already exists - exception is thrown.
 	 *
-	 * @return
+	 * @throws RecordNotFoundException In case parent node doesn't exist
+	 * @return Returns true if node was created. Returns false if node with the given path already existed.
 	 */
 	boolean create(Node node) throws RecordNotFoundException;
 
 	/**
-	 * Delete node
+	 * Deletes node
 	 *
 	 * @return
 	 */
 	boolean delete(Node node);
 
+	/**
+	 * Deletes ephemeral node that was created by specific session.
+	 *
+	 * @param session
+	 */
 	void deleteEphemeralNodes(long session);
 
+	/**
+	 * Returns node that corresponds to requested path
+	 * @param path
+	 * @return
+	 * @throws RecordNotFoundException
+	 */
 	Node get(String path) throws RecordNotFoundException;
 
-	void update(Node node) throws RecordNotFoundException;
+	/**
+	 * Updates node
+	 * @param node
+	 */
+	void update(Node node);
 
 	/**
 	 * Returns list of the children node names. Child node name is a relative name to the parent node.
