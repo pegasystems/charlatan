@@ -15,7 +15,8 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Created by natalia on 7/14/17.
+ * Manages watches subscriptions. Subscriptions are divided by three categories: data, child, exist.
+ *
  */
 public class ZKWatchManager implements ClientWatchManager {
 

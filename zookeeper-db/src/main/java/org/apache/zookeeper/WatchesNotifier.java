@@ -1,6 +1,7 @@
 package org.apache.zookeeper;
 
 import org.apache.zookeeper.service.ClientWatchManager;
+import org.apache.zookeeper.service.NodeUpdateService;
 
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
@@ -9,11 +10,12 @@ import java.util.concurrent.LinkedBlockingDeque;
 /**
  * Created by natalia on 7/14/17.
  */
-public class WatchesSender implements Runnable {
+public class WatchesNotifier implements Runnable {
 	private BlockingQueue<WatcherWatchedEvent> _blockingQueue = new LinkedBlockingDeque<WatcherWatchedEvent>();
 	private ClientWatchManager watchManager;
+	private NodeUpdateService nodeUpdateService;
 
-	public WatchesSender(ClientWatchManager watchManager) {
+	public WatchesNotifier(ClientWatchManager watchManager) {
 		this.watchManager = watchManager;
 	}
 
@@ -30,7 +32,6 @@ public class WatchesSender implements Runnable {
 	}
 
 	public void send(WatchedEvent event) {
-
 		Set<Watcher> watchers = watchManager.materialize(event.getState(), event.getType(), event.getPath() );
 		for(Watcher watcher : watchers) {
 			_blockingQueue.add(new WatcherWatchedEvent(watcher, event));

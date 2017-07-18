@@ -1,6 +1,6 @@
 package org.apache.zookeeper.dao;
 
-import org.apache.zookeeper.dao.bean.Node;
+import org.apache.zookeeper.bean.Node;
 
 import java.util.List;
 
@@ -59,4 +59,6 @@ public interface NodeDao {
 	 * @throws RecordNotFoundException
 	 */
 	List<String> getChildren(Node parent) throws RecordNotFoundException;
+
+	void updateCVersion(Node parent);
 }

@@ -1,12 +1,11 @@
 package org.apache.zookeeper.dao;
 
 import org.apache.zookeeper.CreateMode;
-import org.apache.zookeeper.dao.bean.Node;
+import org.apache.zookeeper.bean.Node;
 import org.junit.BeforeClass;
 import org.junit.FixMethodOrder;
 import org.junit.Test;
 import org.junit.runners.MethodSorters;
-import org.junit.runners.model.TestTimedOutException;
 
 import java.util.Arrays;
 import java.util.List;

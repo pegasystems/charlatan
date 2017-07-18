@@ -1,38 +1,25 @@
 package org.apache.zookeeper.dao;
 
 import org.apache.zookeeper.CreateMode;
-import org.apache.zookeeper.dao.bean.Node;
+import org.apache.zookeeper.bean.Node;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.sql.*;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
 /**
  * Created by natalia on 7/11/17.
  */
-public class NodeDaoSqlite implements NodeDao {
-
-	static {
-		try {
-			Class.forName("org.sqlite.JDBC");
-		} catch (Exception e) {
-			System.err.println(e.getClass().getName() + ": " + e.getMessage());
-			System.exit(0);
-		}
-	}
-
+public class NodeDaoSqlite extends DatabaseConnection implements NodeDao {
 	private static Logger logger = LoggerFactory.getLogger(NodeDaoSqlite.class.getName());
 
-	private String db;
-
 	public NodeDaoSqlite(String db) {
-		this.db = db;
-	}
-
-	private Connection getConnection() throws SQLException {
-		return DriverManager.getConnection("jdbc:sqlite:" + db);
+		super(db);
 	}
 
 	@Override
@@ -46,18 +33,15 @@ public class NodeDaoSqlite implements NodeDao {
 
 	@Override
 	public boolean create(Node node) throws RecordNotFoundException {
-		Integer parentKey = null;
-		if (!node.isRoot()) {
-			parentKey = getNodeKey(node.getParent());
-		}
-
-		StringBuilder sql = new StringBuilder( "INSERT INTO nodes(fk, name, data, timestamp, session" );
-		if( node.getMode() != null )
+		StringBuilder sql = new StringBuilder("INSERT INTO nodes(fk, name, data, timestamp, session");
+		if (node.getMode() != null)
 			sql.append(",mode");
 		sql.append(" ) VALUES(?,?,?,?,?");
-		if( node.getMode() != null )
+		if (node.getMode() != null)
 			sql.append(",?");
 		sql.append(" )");
+
+		int parentKey = getNodeKey(node.getParent());
 
 		try (Connection c = getConnection()) {
 			try (PreparedStatement ps = c.prepareStatement(sql.toString())) {
@@ -67,11 +51,12 @@ public class NodeDaoSqlite implements NodeDao {
 				ps.setLong(4, System.currentTimeMillis());
 				ps.setLong(5, node.getOwnerSession());
 
-				if( node.getMode() != null )
-				   	ps.setString(6, node.getMode().name());
+				if (node.getMode() != null)
+					ps.setString(6, node.getMode().name());
 
-				return ps.executeUpdate() > 0;
+				ps.executeUpdate();
 			}
+			return true;
 		} catch (SQLException e) {
 			if (e.getErrorCode() == 19) {//constraint violation
 				return false;
@@ -116,7 +101,7 @@ public class NodeDaoSqlite implements NodeDao {
 
 	@Override
 	public Node get(String path) throws RecordNotFoundException {
-		String sql = "SELECT name, data, version, mode, timestamp FROM nodes WHERE name = ? ";
+		String sql = "SELECT pk, name, data, version, cversion, mode, timestamp FROM nodes WHERE name = ? ";
 
 		try (Connection c = getConnection()) {
 			try (PreparedStatement ps = c.prepareStatement(sql)) {
@@ -125,10 +110,11 @@ public class NodeDaoSqlite implements NodeDao {
 				if (rs.next()) {
 					byte[] data = rs.getBytes("data");
 					int version = rs.getInt("version");
+					int cversion = rs.getInt("cversion");
 					long timestamp = rs.getLong("timestamp");
-					CreateMode mode= CreateMode.valueOf( rs.getString( "mode") );
+					CreateMode mode = CreateMode.valueOf(rs.getString("mode"));
 
-					return new Node(path, data, version, timestamp, mode );
+					return new Node(path, data, version, cversion, timestamp, mode);
 				}
 			}
 		} catch (SQLException e) {
@@ -147,6 +133,8 @@ public class NodeDaoSqlite implements NodeDao {
 				ps.setBytes(1, node.getData());
 				ps.setString(2, node.getPath());
 				ps.setInt(3, node.getVersion());
+
+				ps.executeUpdate();
 			}
 		} catch (SQLException e) {
 			throw new DataAccessException(e);
@@ -165,21 +153,34 @@ public class NodeDaoSqlite implements NodeDao {
 				List<String> children = new ArrayList<>();
 				while (rs.next()) {
 					String fullPath = rs.getString("name");
-					String nodeName = fullPath.substring(node.getPath().length()+ 1);
+					String nodeName = fullPath.substring(node.getPath().length() + 1);
 					children.add(nodeName);
 
 				}
 				return children;
 			}
 		} catch (SQLException e) {
-			logger.error("GetChildren error",e);
+			logger.error("GetChildren error", e);
+			throw new DataAccessException(e);
+		}
+	}
+
+	@Override
+	public void updateCVersion(Node parent) {
+		try (Connection c = getConnection()) {
+			try (PreparedStatement ps = c.prepareStatement("UPDATE nodes SET cversion=? WHERE name=?")) {
+				ps.setInt(2, parent.getCversion());
+				ps.setString(1, parent.getPath());
+				ps.executeUpdate();
+			}
+		} catch (SQLException e) {
 			throw new DataAccessException(e);
 		}
 	}
 
 	protected int getNodeKey(Node node) throws RecordNotFoundException {
 
-		logger.debug("Get node key for node " + node.getPath() );
+		logger.debug("Get node key for node " + node.getPath());
 		String sql = "SELECT pk FROM nodes WHERE name = ? ";
 
 		try (Connection c = getConnection()) {
@@ -194,7 +195,7 @@ public class NodeDaoSqlite implements NodeDao {
 			throw new DataAccessException(e);
 		}
 
-		logger.debug("No node found " + node.getPath() );
+		logger.debug("No node found " + node.getPath());
 		throw new RecordNotFoundException(node.getPath() + " not found");
 	}
 
@@ -218,7 +219,7 @@ public class NodeDaoSqlite implements NodeDao {
 				ps.executeUpdate();
 			}
 			try (PreparedStatement ps = c.prepareStatement(insertRoot)) {
-				ps.setLong(1, System.currentTimeMillis() );
+				ps.setLong(1, System.currentTimeMillis());
 				ps.executeUpdate();
 			}
 		} catch (SQLException e) {

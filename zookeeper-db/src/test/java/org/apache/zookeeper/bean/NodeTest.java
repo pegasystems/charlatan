@@ -1,5 +1,6 @@
-package org.apache.zookeeper.dao.bean;
+package org.apache.zookeeper.bean;
 
+import org.apache.zookeeper.bean.Node;
 import org.junit.Test;
 
 import static org.junit.Assert.*;
@@ -53,5 +54,4 @@ public class NodeTest {
 		Node node = new Node( "/root/opt/java");
 		assertFalse( node.isRoot() );
 	}
-
 }

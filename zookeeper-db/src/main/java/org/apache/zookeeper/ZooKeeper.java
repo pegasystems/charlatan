@@ -20,10 +20,13 @@ package org.apache.zookeeper;
 
 import org.apache.zookeeper.dao.NodeDao;
 import org.apache.zookeeper.dao.NodeDaoSqlite;
+import org.apache.zookeeper.dao.NodeUpdateDaoSqlite;
 import org.apache.zookeeper.dao.RecordNotFoundException;
-import org.apache.zookeeper.dao.bean.Node;
+import org.apache.zookeeper.bean.Node;
 import org.apache.zookeeper.data.ACL;
 import org.apache.zookeeper.data.Stat;
+import org.apache.zookeeper.service.NodeUpdateService;
+import org.apache.zookeeper.service.NodeUpdateServiceImpl;
 import org.apache.zookeeper.service.ZKWatchManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,12 +40,13 @@ import java.util.concurrent.Executors;
 public class ZooKeeper {
 
 	// TODO: inject or load from config
-	private NodeDao nodeDao = new NodeDaoSqlite("/home/natalia/test.db");
+	final private NodeDao nodeDao = new NodeDaoSqlite("/home/natalia/test.db");
+	final private NodeUpdateService nodeUpdateService;
 
 	private Logger logger = LoggerFactory.getLogger(ZooKeeper.class.getName());
-	private WatchesSender watchesSender;
-	private ZKWatchManager watchManager;
-	private ExecutorService executor;
+	final private WatchesNotifier watchesNotifier;
+	final private ZKWatchManager watchManager;
+	final private ExecutorService executor;
 
 	/**
 	 * Session associated with the client. Session is needed to identify Ephemeral nodes of the client and to remove
@@ -54,15 +58,18 @@ public class ZooKeeper {
 		executor = Executors.newCachedThreadPool();
 		session = new Random().nextLong();
 		watchManager = new ZKWatchManager(watcher, false);
-		watchesSender = new WatchesSender(watchManager);
+		watchesNotifier = new WatchesNotifier(watchManager);
+		nodeUpdateService = new NodeUpdateServiceImpl(watchesNotifier,new NodeUpdateDaoSqlite("/home/natalia/test.db"));
 
-		executor.submit(watchesSender);
+		executor.submit(watchesNotifier);
 
-		watchesSender.send(new WatchedEvent(Watcher.Event.EventType.None, Watcher.Event.KeeperState.SyncConnected, null));
+//		watchesNotifier.send(new WatchedEvent(Watcher.Event.EventType.None, Watcher.Event.KeeperState.SyncConnected, null));
+		nodeUpdateService.processNodeEvent(new WatchedEvent(Watcher.Event.EventType.None, Watcher.Event.KeeperState.SyncConnected, null));
 	}
 
 	public void close() {
 		nodeDao.deleteEphemeralNodes(session);
+		nodeUpdateService.processNodeEvent(new WatchedEvent(Watcher.Event.EventType.None, Watcher.Event.KeeperState.Disconnected, null));
 	}
 
 	/**
@@ -85,6 +92,16 @@ public class ZooKeeper {
 		node.setOwnerSession(session);
 
 		try {
+			Node parent = nodeDao.get(node.getParent().getPath());
+
+			if(createMode.isSequential()){
+				int cversion = parent.getCversion();
+				path = path + cversion;
+				parent.setCversion(cversion++);
+				nodeDao.updateCVersion(parent);
+				node.setPath(path);
+			}
+
 			if (nodeDao.create(node)) {
 				sendNewNodeEvents(node);
 				return node.getPath();
@@ -116,11 +133,8 @@ public class ZooKeeper {
 	 * @param node
 	 */
 	private void sendNewNodeEvents(Node node) {
-		WatchedEvent event = new WatchedEvent(Watcher.Event.EventType.NodeCreated, Watcher.Event.KeeperState.SyncConnected, node.getPath());
-		watchesSender.send(event);
-
-		event = new WatchedEvent(Watcher.Event.EventType.NodeChildrenChanged, Watcher.Event.KeeperState.SyncConnected, node.getParent().getPath());
-		watchesSender.send(event);
+		processEvent(new WatchedEvent(Watcher.Event.EventType.NodeCreated, Watcher.Event.KeeperState.SyncConnected, node.getPath()));
+		processEvent(new WatchedEvent(Watcher.Event.EventType.NodeChildrenChanged, Watcher.Event.KeeperState.SyncConnected, node.getParent().getPath()));
 	}
 
 	/**
@@ -156,11 +170,8 @@ public class ZooKeeper {
 			node.setVersion(version);
 			nodeDao.delete(node);
 
-			WatchedEvent event = new WatchedEvent(Watcher.Event.EventType.NodeDeleted, Watcher.Event.KeeperState.SyncConnected, path);
-			watchesSender.send(event);
-
-			event = new WatchedEvent(Watcher.Event.EventType.NodeChildrenChanged, Watcher.Event.KeeperState.SyncConnected, node.getParent().getPath());
-			watchesSender.send(event);
+			processEvent(new WatchedEvent(Watcher.Event.EventType.NodeDeleted, Watcher.Event.KeeperState.SyncConnected, path));
+			processEvent(new WatchedEvent(Watcher.Event.EventType.NodeChildrenChanged, Watcher.Event.KeeperState.SyncConnected, node.getParent().getPath()));
 		} catch (RecordNotFoundException r) {
 			throw new KeeperException.NoNodeException(path);
 		}
@@ -269,21 +280,25 @@ public class ZooKeeper {
 	 * @throws KeeperException
 	 */
 	public Stat setData(String path, byte[] data, int version) throws KeeperException {
+
+		Stat stat = new Stat();
+
 		try {
 			Node node = nodeDao.get(path);
 
 			if (version >= 0 && node.getVersion() != version) {
-				throw new KeeperException.BadVersionException(path);
+//				throw new KeeperException.BadVersionException(path);
+				logger.warn(String.format( "Cached zkVersion [%d] not equal to that in zookeeper[%d] for path '%s'", version, node.getVersion(), path ) );
 			}
 
 			nodeDao.update(new Node(path, data, version));
+			stat.setVersion(node.getVersion()+1);
 		} catch (RecordNotFoundException e) {
 			throw new KeeperException.NoNodeException(path);
 		}
-		WatchedEvent event = new WatchedEvent(Watcher.Event.EventType.NodeDataChanged, Watcher.Event.KeeperState.SyncConnected, path);
-		watchesSender.send(event);
+		processEvent( new WatchedEvent(Watcher.Event.EventType.NodeDataChanged, Watcher.Event.KeeperState.SyncConnected, path));
 
-		return new Stat();
+		return stat;
 	}
 
 	/**
@@ -312,6 +327,7 @@ public class ZooKeeper {
 				stat.setEphemeralOwner(node.getOwnerSession());
 			}
 			stat.setVersion(node.getVersion());
+			stat.setCversion(node.getCversion());
 			stat.setMtime(node.getTimestamp());
 			stat.setCtime(node.getTimestamp());
 		} catch (RecordNotFoundException e) {
@@ -364,6 +380,11 @@ public class ZooKeeper {
 	 */
 	public long getSessionId() {
 		return session;
+	}
+
+
+	private void processEvent(WatchedEvent event) {
+		nodeUpdateService.processNodeEvent(event);
 	}
 
 	public enum States {

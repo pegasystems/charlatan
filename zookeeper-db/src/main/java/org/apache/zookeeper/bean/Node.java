@@ -1,4 +1,4 @@
-package org.apache.zookeeper.dao.bean;
+package org.apache.zookeeper.bean;
 
 import org.apache.zookeeper.CreateMode;
 
@@ -15,6 +15,7 @@ public class Node {
 	private CreateMode mode;
 	private long timestamp;
 	private int version;
+	private int cversion;
 	private long ownerSession;
 
 	public Node(String path) {
@@ -22,18 +23,18 @@ public class Node {
 	}
 
 	public Node(String path, byte[] data) {
-		this(path, data, -1, 0, null);
+		this(path, data, 0,0, 0, null);
 	}
 
 	public Node(String path, byte[] data, int version) {
-		this(path, data, version, 0, null);
+		this(path, data, version, 0,0, null);
 	}
 
 	public Node(String path, byte[] data, CreateMode mode) {
-		this(path, data, -1, 0, mode);
+		this(path, data, 0,0, 0, mode);
 	}
 
-	public Node(String path, byte[] data, int version, long timestamp, CreateMode mode) {
+	public Node(String path, byte[] data, int version, int cversion, long timestamp, CreateMode mode) {
 
 		if (path == null) {
 			throw new IllegalArgumentException("Path cannot be null");
@@ -55,6 +56,7 @@ public class Node {
 		this.path = path;
 		this.data = data;
 		this.version = version;
+		this.cversion = cversion;
 		this.timestamp = timestamp;
 		this.mode = mode;
 	}
@@ -130,5 +132,17 @@ public class Node {
 
 	public void setOwnerSession(long ownerSession) {
 		this.ownerSession = ownerSession;
+	}
+
+	public int getCversion() {
+		return cversion;
+	}
+
+	public void setCversion(int cversion) {
+		this.cversion = cversion;
+	}
+
+	public void setPath(String path) {
+		this.path = path;
 	}
 }
