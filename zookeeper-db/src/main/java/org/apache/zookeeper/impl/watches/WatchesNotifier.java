@@ -1,7 +1,9 @@
-package org.apache.zookeeper;
+package org.apache.zookeeper.impl.watches;
 
-import org.apache.zookeeper.service.ClientWatchManager;
-import org.apache.zookeeper.service.NodeUpdateService;
+import org.apache.zookeeper.WatchedEvent;
+import org.apache.zookeeper.Watcher;
+import org.apache.zookeeper.impl.node.service.ClientWatchManager;
+import org.apache.zookeeper.impl.node.service.NodeUpdateService;
 
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;

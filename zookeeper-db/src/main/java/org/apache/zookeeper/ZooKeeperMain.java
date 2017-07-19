@@ -1,5 +1,7 @@
 package org.apache.zookeeper;
 
+import org.apache.zookeeper.impl.common.FakeZookeeperException;
+
 import java.io.IOException;
 import java.util.*;
 import java.util.regex.Matcher;

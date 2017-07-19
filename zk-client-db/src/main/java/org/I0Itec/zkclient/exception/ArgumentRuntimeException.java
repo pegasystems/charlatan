@@ -1,4 +1,4 @@
-package org.apache.zookeeper;
+package org.I0Itec.zkclient.exception;
 
 /**
  * Created by natalia on 7/11/17.

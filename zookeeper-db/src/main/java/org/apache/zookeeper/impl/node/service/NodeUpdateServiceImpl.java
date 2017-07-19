@@ -1,10 +1,10 @@
-package org.apache.zookeeper.service;
+package org.apache.zookeeper.impl.node.service;
 
 import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.Watcher;
-import org.apache.zookeeper.WatchesNotifier;
-import org.apache.zookeeper.bean.NamedThreadFactory;
-import org.apache.zookeeper.bean.NodeUpdate;
+import org.apache.zookeeper.impl.watches.WatchesNotifier;
+import org.apache.zookeeper.impl.common.NamedThreadFactory;
+import org.apache.zookeeper.impl.node.bean.NodeUpdate;
 import org.apache.zookeeper.dao.NodeUpdateDao;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -72,7 +72,7 @@ public class NodeUpdateServiceImpl implements NodeUpdateService {
 				notifier.send(event);
 			}
 		} catch (Exception e) {
-			logger.error("pull updates failed", e);
+			logger.warn("pull updates failed [" + e.getMessage() +"]");
 		}
 	}
 
@@ -82,7 +82,7 @@ public class NodeUpdateServiceImpl implements NodeUpdateService {
 			nodeUpdateDao.clearOldUpdates(System.currentTimeMillis() - 10*60*1000);
 		}
 		catch(Exception e){
-			logger.error("clear updates failed",e);
+			logger.warn("clear updates failed [" + e.getMessage() +"]");
 		}
 
 	}

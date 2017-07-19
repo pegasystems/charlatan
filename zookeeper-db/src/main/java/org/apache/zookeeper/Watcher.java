@@ -1,8 +1,5 @@
 package org.apache.zookeeper;
 
-/**
- * Created by natalia on 7/10/17.
- */
 public interface Watcher {
 	abstract public void process(WatchedEvent event);
 

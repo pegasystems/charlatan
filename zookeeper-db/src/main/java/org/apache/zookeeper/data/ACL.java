@@ -19,7 +19,7 @@
 
 package org.apache.zookeeper.data;
 
-import org.apache.zookeeper.FakeZookeeperException;
+import org.apache.zookeeper.impl.common.FakeZookeeperException;
 
 public class ACL {
   private int perms;
@@ -44,19 +44,6 @@ public class ACL {
   public void setId(org.apache.zookeeper.data.Id m_) {
     id=m_;
   }
-//  public void serialize(OutputArchive a_, String tag) throws java.io.IOException {
-//    a_.startRecord(this,tag);
-//    a_.writeInt(perms,"perms");
-//    a_.writeRecord(id,"id");
-//    a_.endRecord(this,tag);
-//  }
-//  public void deserialize(InputArchive a_, String tag) throws java.io.IOException {
-//    a_.startRecord(tag);
-//    perms=a_.readInt("perms");
-//    id= new org.apache.zookeeper.data.Id();
-//    a_.readRecord(id,"id");
-//    a_.endRecord(tag);
-//}
   public String toString() {
    throw new FakeZookeeperException( "Unimplemeneted" );
   }

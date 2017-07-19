@@ -1,4 +1,4 @@
-package org.apache.zookeeper;
+package org.apache.zookeeper.impl.common;
 
 /**
  * Created by natalia on 7/10/17.

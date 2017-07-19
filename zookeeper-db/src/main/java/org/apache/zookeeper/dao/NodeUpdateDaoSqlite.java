@@ -1,7 +1,7 @@
 package org.apache.zookeeper.dao;
 
 import org.apache.zookeeper.Watcher;
-import org.apache.zookeeper.bean.NodeUpdate;
+import org.apache.zookeeper.impl.node.bean.NodeUpdate;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;

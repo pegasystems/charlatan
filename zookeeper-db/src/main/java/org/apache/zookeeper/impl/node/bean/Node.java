@@ -1,4 +1,4 @@
-package org.apache.zookeeper.bean;
+package org.apache.zookeeper.impl.node.bean;
 
 import org.apache.zookeeper.CreateMode;
 

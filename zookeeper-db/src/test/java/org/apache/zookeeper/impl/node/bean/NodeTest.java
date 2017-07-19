@@ -1,6 +1,6 @@
 package org.apache.zookeeper.bean;
 
-import org.apache.zookeeper.bean.Node;
+import org.apache.zookeeper.impl.node.bean.Node;
 import org.junit.Test;
 
 import static org.junit.Assert.*;

@@ -1,4 +1,4 @@
-package org.apache.zookeeper.bean;
+package org.apache.zookeeper.impl.common;
 
 import java.util.concurrent.ThreadFactory;
 

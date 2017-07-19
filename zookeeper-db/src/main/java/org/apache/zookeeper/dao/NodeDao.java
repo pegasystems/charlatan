@@ -1,6 +1,6 @@
 package org.apache.zookeeper.dao;
 
-import org.apache.zookeeper.bean.Node;
+import org.apache.zookeeper.impl.node.bean.Node;
 
 import java.util.List;
 

@@ -21,13 +21,17 @@ public class DatabaseConnection {
 	}
 
 	private String db;
+	private SQLiteConfig config;
 
 	public DatabaseConnection(String db) {
 		this.db = db;
+
+		config = new SQLiteConfig();
+		config.setBusyTimeout("1000");
 	}
 
 	protected Connection getConnection() throws SQLException {
-		return DriverManager.getConnection("jdbc:sqlite:" + db);
+		return DriverManager.getConnection("jdbc:sqlite:" + db, config.toProperties());
 	}
 
 }

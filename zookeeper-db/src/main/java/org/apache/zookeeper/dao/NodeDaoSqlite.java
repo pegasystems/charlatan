@@ -1,7 +1,7 @@
 package org.apache.zookeeper.dao;
 
 import org.apache.zookeeper.CreateMode;
-import org.apache.zookeeper.bean.Node;
+import org.apache.zookeeper.impl.node.bean.Node;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

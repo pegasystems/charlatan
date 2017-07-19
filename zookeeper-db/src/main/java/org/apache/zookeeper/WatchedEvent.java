@@ -39,16 +39,7 @@ public class WatchedEvent {
         this.eventType = eventType;
         this.path = path;
     }
-    
-//    /**
-//     * Convert a WatcherEvent sent over the wire into a full-fledged WatcherEvent
-//     */
-//    public WatchedEvent(WatcherEvent eventMessage) {
-//        keeperState = KeeperState.fromInt(eventMessage.getState());
-//        eventType = EventType.fromInt(eventMessage.getType());
-//        path = eventMessage.getPath();
-//    }
-    
+
     public KeeperState getState() {
         return keeperState;
     }
@@ -66,13 +57,4 @@ public class WatchedEvent {
         return "WatchedEvent state:" + keeperState
             + " type:" + eventType + " path:" + path;
     }
-//
-//    /**
-//     *  Convert WatchedEvent to type that can be sent over network
-//     */
-//    public WatcherEvent getWrapper() {
-//        return new WatcherEvent(eventType.getIntValue(),
-//                                keeperState.getIntValue(),
-//                                path);
-//    }
 }

@@ -153,36 +153,6 @@ public class Stat {
 		pzxid = m_;
 	}
 
-	//  public void serialize(OutputArchive a_, String tag) throws java.io.IOException {
-//    a_.startRecord(this,tag);
-//    a_.writeLong(czxid,"czxid");
-//    a_.writeLong(mzxid,"mzxid");
-//    a_.writeLong(ctime,"ctime");
-//    a_.writeLong(mtime,"mtime");
-//    a_.writeInt(version,"version");
-//    a_.writeInt(cversion,"cversion");
-//    a_.writeInt(aversion,"aversion");
-//    a_.writeLong(ephemeralOwner,"ephemeralOwner");
-//    a_.writeInt(dataLength,"dataLength");
-//    a_.writeInt(numChildren,"numChildren");
-//    a_.writeLong(pzxid,"pzxid");
-//    a_.endRecord(this,tag);
-//  }
-//  public void deserialize(InputArchive a_, String tag) throws java.io.IOException {
-//    a_.startRecord(tag);
-//    czxid=a_.readLong("czxid");
-//    mzxid=a_.readLong("mzxid");
-//    ctime=a_.readLong("ctime");
-//    mtime=a_.readLong("mtime");
-//    version=a_.readInt("version");
-//    cversion=a_.readInt("cversion");
-//    aversion=a_.readInt("aversion");
-//    ephemeralOwner=a_.readLong("ephemeralOwner");
-//    dataLength=a_.readInt("dataLength");
-//    numChildren=a_.readInt("numChildren");
-//    pzxid=a_.readLong("pzxid");
-//    a_.endRecord(tag);
-//}
 	public String toString() {
 		StringBuilder s = new StringBuilder();
 		s.append(czxid).append(",czxid;")
@@ -201,13 +171,9 @@ public class Stat {
 	}
 
 	public void write(java.io.DataOutput out) throws java.io.IOException {
-//    BinaryOutputArchive archive = new BinaryOutputArchive(out);
-//    serialize(archive, "");
 	}
 
 	public void readFields(java.io.DataInput in) throws java.io.IOException {
-//    BinaryInputArchive archive = new BinaryInputArchive(in);
-//    deserialize(archive, "");
 	}
 
 	public int compareTo(Object peer_) throws ClassCastException {
