@@ -1,4 +1,4 @@
-package org.apache.zookeeper.impl.node.service;
+package org.apache.zookeeper.impl.watches.service;
 
 import org.apache.zookeeper.Watcher;
 

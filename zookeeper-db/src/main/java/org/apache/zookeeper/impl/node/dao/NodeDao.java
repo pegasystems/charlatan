@@ -1,4 +1,4 @@
-package org.apache.zookeeper.dao;
+package org.apache.zookeeper.impl.node.dao;
 
 import org.apache.zookeeper.impl.node.bean.Node;
 
@@ -9,12 +9,12 @@ import java.util.List;
  */
 public interface NodeDao {
 
-	/**
-	 * True if requested path exists
-	 *
-	 * @return
-	 */
-	boolean exists(Node node);
+//NodeDao	/**
+//	 * True if requested path exists
+//	 *
+//	 * @return
+//	 */
+//	boolean exists(Node node);
 
 	/**
 	 * Stores node and node data.
@@ -22,7 +22,7 @@ public interface NodeDao {
 	 * @throws RecordNotFoundException In case parent node doesn't exist
 	 * @return Returns true if node was created. Returns false if node with the given path already existed.
 	 */
-	boolean create(Node node) throws RecordNotFoundException;
+	boolean create(long session, Node node) throws RecordNotFoundException;
 
 	/**
 	 * Deletes node
@@ -30,13 +30,6 @@ public interface NodeDao {
 	 * @return
 	 */
 	boolean delete(Node node);
-
-	/**
-	 * Deletes ephemeral node that was created by specific session.
-	 *
-	 * @param session
-	 */
-	void deleteEphemeralNodes(long session);
 
 	/**
 	 * Returns node that corresponds to requested path
@@ -47,10 +40,10 @@ public interface NodeDao {
 	Node get(String path) throws RecordNotFoundException;
 
 	/**
-	 * Updates node
-	 * @param node
+	 * Updates node data on requested path.
+	 * Stores new node version and node modification time.
 	 */
-	void update(Node node);
+	void update(String path, byte[] data, int newVersion, long modificationTime);
 
 	/**
 	 * Returns list of the children node names. Child node name is a relative name to the parent node.
@@ -60,5 +53,12 @@ public interface NodeDao {
 	 */
 	List<String> getChildren(Node parent) throws RecordNotFoundException;
 
-	void updateCVersion(Node parent);
+	void updateCVersion(String path, int cversion);
+
+	/**
+	 * Returns list of epephemeral nodes of the requested session
+	 * @param session
+	 * @return
+	 */
+	List<String> getEphemeralPaths(long session);
 }

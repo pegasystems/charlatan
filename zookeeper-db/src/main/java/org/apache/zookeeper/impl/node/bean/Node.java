@@ -1,7 +1,9 @@
 package org.apache.zookeeper.impl.node.bean;
 
 import org.apache.zookeeper.CreateMode;
+import org.apache.zookeeper.data.Stat;
 
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -10,31 +12,31 @@ import java.util.Objects;
 public class Node {
 
 	private static char SEP = '/';
-	private String path;
-	private byte[] data;
+
 	private CreateMode mode;
-	private long timestamp;
-	private int version;
-	private int cversion;
-	private long ownerSession;
+
+	/**
+	 * List of children paths relative to the Node
+	 */
+	private List<String> children;
+
+	/**
+	 * Full path of the node
+	 */
+	private String path;
+
+	/**
+	 * Node data
+	 */
+	private byte[] data;
+
+	private Stat stat;
 
 	public Node(String path) {
-		this(path, null);
-	}
-
-	public Node(String path, byte[] data) {
-		this(path, data, 0,0, 0, null);
-	}
-
-	public Node(String path, byte[] data, int version) {
-		this(path, data, version, 0,0, null);
+		this(path, null, null);
 	}
 
 	public Node(String path, byte[] data, CreateMode mode) {
-		this(path, data, 0,0, 0, mode);
-	}
-
-	public Node(String path, byte[] data, int version, int cversion, long timestamp, CreateMode mode) {
 
 		if (path == null) {
 			throw new IllegalArgumentException("Path cannot be null");
@@ -55,55 +57,42 @@ public class Node {
 
 		this.path = path;
 		this.data = data;
-		this.version = version;
-		this.cversion = cversion;
-		this.timestamp = timestamp;
 		this.mode = mode;
+		this.stat = new Stat();
 	}
 
 	public String getPath() {
 		return path;
 	}
 
+	public void setPath(String path) {
+		this.path = path;
+	}
+
 	public byte[] getData() {
 		return data;
 	}
 
-	public Node getParent() {
+	public void setData(byte data[]) {
+		this.data = data;
+	}
+
+	public String getParentPath() {
 		if (isRoot()) {
 			return null;
 		}
 
 		int lastCh = path.lastIndexOf(SEP);
+
 		if (lastCh == 0) {
-			return new Node(String.valueOf(SEP));
+			return String.valueOf(SEP);
 		} else {
-			return new Node(path.substring(0, lastCh + (lastCh == 0 ? 1 : 0)));
+			return path.substring(0, lastCh);
 		}
 	}
 
 	public boolean isRoot() {
 		return path.length() == 1;
-	}
-
-	public int getVersion() {
-		return version;
-	}
-
-	public void setVersion(int version) {
-		this.version = version;
-	}
-
-	public boolean hasVersion() {
-		return version >= 0;
-	}
-
-	public long getTimestamp() {
-		return timestamp;
-	}
-
-	public void setTimestamp(long timestamp) {
-		this.timestamp = timestamp;
 	}
 
 	public CreateMode getMode() {
@@ -118,31 +107,25 @@ public class Node {
 	public boolean equals(Object obj) {
 		if (obj instanceof Node) {
 			Node n = (Node) obj;
-			return Objects.equals(this.version, n.version) && Objects.equals(this.path, n.path)
+			return Objects.equals(this.path, n.path)
+					&& Objects.equals(this.children, n.children)
 					&& Objects.equals(this.data, n.data)
-					&& Objects.equals(this.timestamp, n.timestamp);
+					&& Objects.equals(this.stat, n.stat)
+					&& Objects.equals(this.mode, n.mode);
 		}
 
 		return false;
 	}
 
-	public long getOwnerSession() {
-		return ownerSession;
+	public List<String> getChildren() {
+		return children;
 	}
 
-	public void setOwnerSession(long ownerSession) {
-		this.ownerSession = ownerSession;
+	public void setChildren(List<String> children) {
+		this.children = children;
 	}
 
-	public int getCversion() {
-		return cversion;
-	}
-
-	public void setCversion(int cversion) {
-		this.cversion = cversion;
-	}
-
-	public void setPath(String path) {
-		this.path = path;
+	public Stat getStat() {
+		return stat;
 	}
 }

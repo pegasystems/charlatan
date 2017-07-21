@@ -1,9 +1,7 @@
-package org.apache.zookeeper.impl.watches;
+package org.apache.zookeeper.impl.watches.service;
 
 import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.Watcher;
-import org.apache.zookeeper.impl.node.service.ClientWatchManager;
-import org.apache.zookeeper.impl.node.service.NodeUpdateService;
 
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
@@ -12,11 +10,9 @@ import java.util.concurrent.LinkedBlockingDeque;
 /**
  * Created by natalia on 7/14/17.
  */
-public class WatchesNotifier implements Runnable {
+public class WatchesNotifier implements NodeUpdateListener, Runnable {
 	private BlockingQueue<WatcherWatchedEvent> _blockingQueue = new LinkedBlockingDeque<WatcherWatchedEvent>();
 	private ClientWatchManager watchManager;
-	private NodeUpdateService nodeUpdateService;
-
 	public WatchesNotifier(ClientWatchManager watchManager) {
 		this.watchManager = watchManager;
 	}
@@ -33,7 +29,7 @@ public class WatchesNotifier implements Runnable {
 		}
 	}
 
-	public void send(WatchedEvent event) {
+	public void processWatchedEvent(WatchedEvent event) {
 		Set<Watcher> watchers = watchManager.materialize(event.getState(), event.getType(), event.getPath() );
 		for(Watcher watcher : watchers) {
 			_blockingQueue.add(new WatcherWatchedEvent(watcher, event));

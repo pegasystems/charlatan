@@ -7,6 +7,7 @@ import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.data.ACL;
 import org.apache.zookeeper.data.Stat;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
@@ -27,7 +28,11 @@ public class ZkConnection implements IZkConnection {
 
 	@Override
 	public void connect(Watcher watcher) {
-		zk = new ZooKeeper(null, 0, null);
+		try {
+			zk = new ZooKeeper(null, 0, null);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 	}
 
 	@Override

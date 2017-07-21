@@ -1,11 +1,12 @@
 package org.I0Itec.zkclient;
 
 import org.I0Itec.zkclient.exception.*;
-import org.I0Itec.zkclient.serialize.JsonSerializer;
-import org.I0Itec.zkclient.serialize.SerializableSerializer;
 import org.I0Itec.zkclient.serialize.StringSerializer;
 import org.I0Itec.zkclient.serialize.ZkSerializer;
-import org.apache.zookeeper.*;
+import org.apache.zookeeper.CreateMode;
+import org.apache.zookeeper.KeeperException;
+import org.apache.zookeeper.WatchedEvent;
+import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.data.ACL;
 import org.apache.zookeeper.data.Stat;
 import org.apache.zookeeper.impl.common.FakeZookeeperException;
@@ -81,7 +82,7 @@ public class ZkClient implements Watcher {
 			return null;
 		}
 
-		return (T)serializer.deserialize(data);
+		return (T) serializer.deserialize(data);
 	}
 
 	public Stat writeDataReturnStat(final String path, Object data, final int expectedVersion) {

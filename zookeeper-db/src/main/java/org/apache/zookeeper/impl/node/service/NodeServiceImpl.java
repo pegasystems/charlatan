@@ -1,15 +1,14 @@
 package org.apache.zookeeper.impl.node.service;
 
 import org.apache.zookeeper.*;
-import org.apache.zookeeper.dao.NodeDao;
-import org.apache.zookeeper.dao.NodeDaoSqlite;
-import org.apache.zookeeper.dao.NodeUpdateDaoSqlite;
-import org.apache.zookeeper.dao.RecordNotFoundException;
 import org.apache.zookeeper.data.ACL;
 import org.apache.zookeeper.data.Stat;
-import org.apache.zookeeper.impl.common.FakeZookeeperException;
+import org.apache.zookeeper.impl.common.ZookeeperClassLoader;
 import org.apache.zookeeper.impl.node.bean.Node;
-import org.apache.zookeeper.impl.watches.WatchesNotifier;
+import org.apache.zookeeper.impl.node.dao.RecordNotFoundException;
+import org.apache.zookeeper.impl.watches.service.ClientWatchManagerImpl;
+import org.apache.zookeeper.impl.watches.service.RemoteNodeUpdates;
+import org.apache.zookeeper.impl.watches.service.WatchesNotifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -23,12 +22,12 @@ import java.util.concurrent.Executors;
  */
 public class NodeServiceImpl implements NodeService {
 
-	// TODO: inject or load from config
-	final private NodeDao nodeDao = new NodeDaoSqlite("/home/natalia/test.db");
-	final private NodeUpdateService nodeUpdateService;
-	final private WatchesNotifier watchesNotifier;
-	final private ZKWatchManager watchManager;
-	final private ExecutorService executor;
+	private final int sessionTimeout;
+	private final ZKDatabase zkDatabase;
+	private final WatchesNotifier watchesNotifier;
+	private final ClientWatchManagerImpl watchManager;
+	private final RemoteNodeUpdates remoteNodeUpdates;
+	private final ExecutorService executor;
 	private Logger logger = LoggerFactory.getLogger(ZooKeeper.class.getName());
 	/**
 	 * Session associated with the client. Session is needed to identify Ephemeral nodes of the client and to remove
@@ -36,66 +35,77 @@ public class NodeServiceImpl implements NodeService {
 	 */
 	private long session;
 
-	public NodeServiceImpl(Watcher watcher) throws IOException {
-		executor = Executors.newCachedThreadPool();
-		session = new Random().nextLong();
-		watchManager = new ZKWatchManager(watcher, false);
-		watchesNotifier = new WatchesNotifier(watchManager);
-		nodeUpdateService = new NodeUpdateServiceImpl(watchesNotifier, new NodeUpdateDaoSqlite("/home/natalia/test.db"));
+	public NodeServiceImpl(int sessionTimeout, Watcher watcher) throws IOException {
+		// TODO: implement timeouts
+		this.sessionTimeout = sessionTimeout;
+		this.zkDatabase = new ZKDatabase(ZookeeperClassLoader.getNodeDao());
 
+		// Generate session
+		this.session = new Random().nextLong();
+
+		watchManager = new ClientWatchManagerImpl(watcher, false);
+		watchesNotifier = new WatchesNotifier(watchManager);
+
+		remoteNodeUpdates = ZookeeperClassLoader.getRemoteNodeUpdates();
+		remoteNodeUpdates.addNodeUpdateListener(watchesNotifier);
+
+		executor = Executors.newCachedThreadPool();
 		executor.submit(watchesNotifier);
 
-//		watchesNotifier.send(new WatchedEvent(Watcher.Event.EventType.None, Watcher.Event.KeeperState.SyncConnected, null));
-		nodeUpdateService.processNodeEvent(new WatchedEvent(Watcher.Event.EventType.None, Watcher.Event.KeeperState.SyncConnected, null));
+		processEvent(new WatchedEvent(Watcher.Event.EventType.None, Watcher.Event.KeeperState.SyncConnected, null));
 	}
 
+
+	@Override
 	public void close() {
-		nodeDao.deleteEphemeralNodes(session);
-		nodeUpdateService.processNodeEvent(new WatchedEvent(Watcher.Event.EventType.None, Watcher.Event.KeeperState.Disconnected, null));
+		List<String> ephemeralPaths = zkDatabase.getEphemeralPaths(session);
+		for (String ephemeralPath : ephemeralPaths) {
+			try {
+				delete(ephemeralPath, -1);
+			} catch (KeeperException e) {
+				logger.error("Failed to remove session ephemeral node " + ephemeralPath, e);
+			}
+		}
+
+		processEvent(new WatchedEvent(Watcher.Event.EventType.None, Watcher.Event.KeeperState.Disconnected, null));
 	}
 
-	/**
-	 * Create a node with the given path and data.
-	 * If a node with the same actual path already exists in the ZooKeeper, a
-	 * KeeperException with error code KeeperException.NodeExists will be
-	 * thrown.
-	 * <p>
-	 * If the parent node does not exist in the ZooKeeper, a KeeperException
-	 * with error code KeeperException.NoNode will be thrown.
-	 *
-	 * @param path
-	 * @param data
-	 * @param acl
-	 * @param createMode
-	 * @return
-	 */
+	@Override
 	public String create(String path, byte[] data, List<ACL> acl, CreateMode createMode) throws KeeperException {
 		final Node node = new Node(path, data, createMode);
-		node.setOwnerSession(session);
 
 		try {
-			Node parent = nodeDao.get(node.getParent().getPath());
+			Node parent = zkDatabase.get(node.getParentPath());
+			int cversion = parent.getStat().getCversion();
 
 			if (createMode.isSequential()) {
-				int cversion = parent.getCversion();
-				path = path + cversion;
-				parent.setCversion(cversion++);
-				nodeDao.updateCVersion(parent);
+				//The number of changes to the children of this znode.
+				path = path + String.format("%010d", cversion);
 				node.setPath(path);
 			}
 
-			if (nodeDao.create(node)) {
+			long now = System.currentTimeMillis();
+			node.getStat().setCtime(now);
+			node.getStat().setMtime(now);
+
+			// small optimization: sequential branches are never created in the root
+			if (!parent.isRoot()) {
+				zkDatabase.updateCVersion(parent.getPath(), cversion + 1);
+			}
+
+			if (zkDatabase.create(session, node)) {
 				sendNewNodeEvents(node);
 				return node.getPath();
 			}
 
 			throw new KeeperException.NodeExistsException();
 		} catch (RecordNotFoundException e) {
-			throw new KeeperException.NoNodeException(node.getParent().getPath());
+			throw new KeeperException.NoNodeException(node.getParentPath());
 		}
 	}
 
 
+	@Override
 	public void create(final String path, byte[] data, List<ACL> acl, CreateMode createMode, AsyncCallback.StringCallback cb, Object ctx) {
 		executor.submit(() ->
 		{
@@ -116,7 +126,7 @@ public class NodeServiceImpl implements NodeService {
 	 */
 	private void sendNewNodeEvents(Node node) {
 		processEvent(new WatchedEvent(Watcher.Event.EventType.NodeCreated, Watcher.Event.KeeperState.SyncConnected, node.getPath()));
-		processEvent(new WatchedEvent(Watcher.Event.EventType.NodeChildrenChanged, Watcher.Event.KeeperState.SyncConnected, node.getParent().getPath()));
+		processEvent(new WatchedEvent(Watcher.Event.EventType.NodeChildrenChanged, Watcher.Event.KeeperState.SyncConnected, node.getParentPath()));
 	}
 
 	/**
@@ -135,79 +145,72 @@ public class NodeServiceImpl implements NodeService {
 	 * @param version
 	 * @throws KeeperException
 	 */
+	@Override
 	public void delete(String path, int version) throws KeeperException {
 		try {
-			Node node = nodeDao.get(path);
+			Node node = zkDatabase.get(path);
 
-			if (version >= 0 && node.getVersion() != version) {
+			if (version >= 0 && node.getStat().getVersion() != version) {
 				throw new KeeperException.BadVersionException(path);
 			}
 
-			List<String> children = nodeDao.getChildren(node);
-
-			if (children.size() > 0) {
+			if (node.getChildren() != null && node.getChildren().size() > 0) {
 				throw new KeeperException.NotEmptyException(path);
 			}
 
-			node.setVersion(version);
-			nodeDao.delete(node);
+			if (zkDatabase.delete(node)) {
 
-			processEvent(new WatchedEvent(Watcher.Event.EventType.NodeDeleted, Watcher.Event.KeeperState.SyncConnected, path));
-			processEvent(new WatchedEvent(Watcher.Event.EventType.NodeChildrenChanged, Watcher.Event.KeeperState.SyncConnected, node.getParent().getPath()));
+				processEvent(new WatchedEvent(Watcher.Event.EventType.NodeDeleted, Watcher.Event.KeeperState.SyncConnected, path));
+				processEvent(new WatchedEvent(Watcher.Event.EventType.NodeChildrenChanged, Watcher.Event.KeeperState.SyncConnected, node.getParentPath()));
+			}
+			//node was modificated during the deletion process
+			else {
+				throw new KeeperException.BadVersionException(path);
+			}
 		} catch (RecordNotFoundException r) {
 			throw new KeeperException.NoNodeException(path);
 		}
 	}
 
-	/**
-	 * Returns the list of the children of the node of the given path.
-	 * <p>
-	 * A KeeperException with error code KeeperException.NoNode will be thrown
-	 * if no node with the given path exists.
-	 *
-	 * @param path
-	 * @param watch
-	 * @return
-	 * @throws KeeperException
-	 */
+	@Override
 	public List<String> getChildren(String path, boolean watch) throws KeeperException {
 		try {
-			List<String> children = nodeDao.getChildren(new Node(path));
+
+			Node node = zkDatabase.get(path);
 
 			if (watch) {
 				WatchRegistration wr = new ChildWatchRegistration(watchManager.getDefaultWatcher(), path);
 				wr.register(0);
 			}
 
-			return children;
+			return node.getChildren();
 		} catch (RecordNotFoundException e) {
 			throw new KeeperException.NoNodeException(path);
 		}
 	}
 
-	/**
-	 * Return the data and the stat of the node of the given path.
-	 * <p>
-	 * A KeeperException with error code KeeperException.NoNode will be thrown
-	 * if no node with the given path exists.
-	 *
-	 * @param path
-	 * @param watch
-	 * @param stat
-	 * @return
-	 * @throws KeeperException
-	 */
+
+	@Override
+	public void getChildren(String path, boolean watch, AsyncCallback.ChildrenCallback cb, Object ctx) {
+		executor.submit(() ->
+		{
+			try {
+				List<String> children = getChildren(path, watch);
+
+				cb.processResult(KeeperException.Code.OK.intValue(), path, ctx, children);
+			} catch (KeeperException e) {
+				cb.processResult(e.code().intValue(), path, ctx, null);
+			}
+		});
+	}
+
+	@Override
 	public byte[] getData(String path, boolean watch, Stat stat) throws KeeperException {
-		Node node = getNode(path, watch);
+		Node node = getNode(path);
 
 
 		if (stat != null) {
-			stat.setVersion(node.getVersion());
-			stat.setCtime(node.getTimestamp());
-
-			if (node.getMode() == CreateMode.EPHEMERAL) {
-				stat.setEphemeralOwner(node.getOwnerSession());
-			}
+			stat.loadFrom(node.getStat());
 		}
 
 		if (watch) {
@@ -217,70 +220,54 @@ public class NodeServiceImpl implements NodeService {
 		return node.getData();
 	}
 
+	@Override
 	public void getData(String path, boolean watch, AsyncCallback.DataCallback cb, Object ctx) {
 		executor.submit(() ->
 		{
 			try {
-				Node node = getNode(path, watch);
-				Stat stat = new Stat();
-				stat.setCtime(node.getTimestamp());
-				if (node.getMode() == CreateMode.EPHEMERAL) {
-					stat.setEphemeralOwner(node.getOwnerSession());
-				}
+				Node node = getNode(path);
 
 				if (watch) {
 					WatchRegistration wcb = new DataWatchRegistration(watchManager.getDefaultWatcher(), path);
 					wcb.register(0);
 				}
 
+				Stat stat = new Stat(node.getStat());
+
 				cb.processResult(KeeperException.Code.OK.intValue(), path, ctx, node.getData(), stat);
 			} catch (KeeperException e) {
-				cb.processResult(e.code().intValue(), path, ctx, null, new Stat());
+				cb.processResult(e.code().intValue(), path, ctx, null, null);
 			}
 		});
 
 	}
 
-	private Node getNode(String path, boolean watch) throws KeeperException.NoNodeException {
+	private Node getNode(String path) throws KeeperException.NoNodeException {
 		try {
-			return nodeDao.get(path);
+			return zkDatabase.get(path);
 		} catch (RecordNotFoundException e) {
 			throw new KeeperException.NoNodeException(path);
 		}
 	}
 
-	/**
-	 * Set the data for the node of the given path if such a node exists and the
-	 * given version matches the version of the node (if the given version is
-	 * -1, it matches any node's versions).
-	 * <p>
-	 *
-	 * @param path
-	 * @param data
-	 * @param version
-	 * @return The stat of the node
-	 * @throws KeeperException
-	 */
+	@Override
 	public Stat setData(String path, byte[] data, int version) throws KeeperException {
 
-		Stat stat = new Stat();
 
-		try {
-			Node node = nodeDao.get(path);
+		Node node = getNode(path);
 
-			if (version >= 0 && node.getVersion() != version) {
-//				throw new KeeperException.BadVersionException(path);
-				logger.warn(String.format("Cached zkVersion [%d] not equal to that in zookeeper[%d] for path '%s'", version, node.getVersion(), path));
-			}
-
-			nodeDao.update(new Node(path, data, version));
-			stat.setVersion(node.getVersion() + 1);
-		} catch (RecordNotFoundException e) {
-			throw new KeeperException.NoNodeException(path);
+		if (version >= 0 && node.getStat().getVersion() != version) {
+			throw new KeeperException.BadVersionException(path);
+//				logger.warn(String.format("Cached zkVersion [%d] not equal to that in zookeeper[%d] for path '%s'", version, node.getVersion(), path));
 		}
+
+		zkDatabase.update(path, data, version + 1, System.currentTimeMillis());
+
+		node = getNode(path);
+
 		processEvent(new WatchedEvent(Watcher.Event.EventType.NodeDataChanged, Watcher.Event.KeeperState.SyncConnected, path));
 
-		return stat;
+		return new Stat(node.getStat());
 	}
 
 	/**
@@ -291,30 +278,22 @@ public class NodeServiceImpl implements NodeService {
 	 * @param watch
 	 * @return
 	 */
+	@Override
 	public Stat exists(String path, boolean watch) {
 		return exists(path, watch ? watchManager.getDefaultWatcher() : null);
 	}
 
+	@Override
 	public Stat exists(String path, Watcher watcher) {
 		logger.info("Checking node " + path);
 
-		boolean exists = false;
 		Stat stat = null;
 		try {
-			Node node = nodeDao.get(path);
-			exists = true;
+			Node node = zkDatabase.get(path);
+			stat = new Stat(node.getStat());
 
-			stat = new Stat();
-			if (node.getMode() == CreateMode.EPHEMERAL) {
-				stat.setEphemeralOwner(node.getOwnerSession());
-			}
-			stat.setVersion(node.getVersion());
-			stat.setCversion(node.getCversion());
-			stat.setMtime(node.getTimestamp());
-			stat.setCtime(node.getTimestamp());
 		} catch (RecordNotFoundException e) {
 		}
-
 
 		if (watcher != null) {
 			WatchRegistration wcb = new ExistsWatchRegistration(watcher, path);
@@ -324,48 +303,27 @@ public class NodeServiceImpl implements NodeService {
 		return stat;
 	}
 
+	@Override
 	public void setACL(String path, List<ACL> acl, int version, AsyncCallback.StatCallback cb, Object ctx) {
-		throw new FakeZookeeperException(FakeZookeeperException.Code.UNIMPLEMENTED);
+		logger.warn("Node ACL is unimplemented");
 	}
 
-
-	/**
-	 * The asynchronous version of getChildren. Return the list of the children of the node of the given path.
-	 *
-	 * @param path
-	 * @param watch
-	 * @param cb
-	 * @param ctx
-	 */
-	public void getChildren(String path, boolean watch, AsyncCallback.ChildrenCallback cb, Object ctx) {
-		executor.submit(() ->
-		{
-			try {
-				List<String> children = getChildren(path, watch);
-
-				if (watch) {
-					WatchRegistration wr = new ChildWatchRegistration(watchManager.getDefaultWatcher(), path);
-					wr.register(0);
-				}
-
-				cb.processResult(KeeperException.Code.OK.intValue(), path, ctx, children);
-			} catch (KeeperException e) {
-				cb.processResult(e.code().intValue(), path, ctx, null);
-			}
-		});
-	}
 
 	/**
 	 * The session id for this ZooKeeper client instance.
 	 *
 	 * @return
 	 */
+	@Override
 	public long getSessionId() {
 		return session;
 	}
 
 	private void processEvent(WatchedEvent event) {
-		nodeUpdateService.processNodeEvent(event);
+		if(event.getPath() != null ) {
+			remoteNodeUpdates.processLocalWatchedEvent(event);
+		}
+		watchesNotifier.processWatchedEvent(event);
 	}
 
 	/**

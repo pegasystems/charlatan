@@ -23,11 +23,32 @@ package org.apache.zookeeper.data;
 public class Stat {
 	private long czxid;
 	private long mzxid;
+
+	/**
+	 * The time in milliseconds from epoch when this znode was created.
+	 */
 	private long ctime;
+
+	/**
+	 * The time in milliseconds from epoch when this znode was last modified.
+	 */
 	private long mtime;
+
+	/**
+	 * The number of changes to the data of this znode.
+	 */
 	private int version;
+
+	/**
+	 * The number of changes to the children of this znode.
+	 */
 	private int cversion;
+
 	private int aversion;
+
+	/**
+	 * The session id of the owner of this znode if the znode is an ephemeral node. If it is not an ephemeral node, it will be zero.
+	 */
 	private long ephemeralOwner;
 	private int dataLength;
 	private int numChildren;
@@ -59,6 +80,10 @@ public class Stat {
 		this.dataLength = dataLength;
 		this.numChildren = numChildren;
 		this.pzxid = pzxid;
+	}
+
+	public Stat(Stat s) {
+		loadFrom(s);
 	}
 
 	public static String signature() {
@@ -151,6 +176,21 @@ public class Stat {
 
 	public void setPzxid(long m_) {
 		pzxid = m_;
+	}
+
+	public void loadFrom(Stat stat) {
+		this.version = stat.version;
+		this.aversion = stat.aversion;
+		this.cversion = stat.cversion;
+		this.ctime = stat.ctime;
+		this.mtime = stat.mtime;
+		this.czxid = stat.czxid;
+		this.mzxid = stat.mzxid;
+		this.pzxid = stat.pzxid;
+		this.dataLength = stat.dataLength;
+		this.ephemeralOwner = stat.ephemeralOwner;
+		this.numChildren = stat.numChildren;
+
 	}
 
 	public String toString() {

@@ -1,4 +1,4 @@
-package org.apache.zookeeper.impl.node.service;
+package org.apache.zookeeper.impl.watches.service;
 
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.KeeperException.Code;
@@ -18,16 +18,16 @@ import java.util.Set;
  * Manages watches subscriptions. Subscriptions are divided by three categories: data, child, exist.
  *
  */
-public class ZKWatchManager implements ClientWatchManager {
+public class ClientWatchManagerImpl implements ClientWatchManager {
 
 	protected final Watcher defaultWatcher;
 	private final Map<String, Set<Watcher>> dataWatches;
 	private final Map<String, Set<Watcher>> existWatches;
 	private final Map<String, Set<Watcher>> childWatches;
-	private Logger logger = LoggerFactory.getLogger(ZKWatchManager.class.getName());
+	private Logger logger = LoggerFactory.getLogger(ClientWatchManagerImpl.class.getName());
 	private boolean disableAutoWatchReset;
 
-	public ZKWatchManager(Watcher defaultWatcher, boolean disableAutoWatchReset) {
+	public ClientWatchManagerImpl(Watcher defaultWatcher, boolean disableAutoWatchReset) {
 		this.disableAutoWatchReset = disableAutoWatchReset;
 		this.dataWatches = new HashMap<String, Set<Watcher>>();
 		this.existWatches =

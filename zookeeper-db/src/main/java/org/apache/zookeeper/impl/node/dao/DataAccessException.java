@@ -1,4 +1,4 @@
-package org.apache.zookeeper.dao;
+package org.apache.zookeeper.impl.node.dao;
 
 import java.sql.SQLException;
 
@@ -12,5 +12,9 @@ public class DataAccessException extends RuntimeException {
 
 	public DataAccessException(String msg) {
 		super(msg);
+	}
+
+	public DataAccessException(String error, Exception e) {
+		super(error, e);
 	}
 }

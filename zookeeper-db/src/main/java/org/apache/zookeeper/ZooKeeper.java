@@ -33,38 +33,45 @@ public class ZooKeeper implements NodeService {
 	private NodeService nodeService;
 
 	public ZooKeeper(String connectString, int sessionTimeout, Watcher watcher) throws IOException {
-		this(new NodeServiceImpl(watcher));
+		this.nodeService = new NodeServiceImpl(sessionTimeout, watcher);
 	}
 
 	public ZooKeeper(NodeService nodeService) {
 		this.nodeService = nodeService;
 	}
 
+	@Override
 	public void close() {
 		nodeService.close();
 	}
 
+	@Override
 	public String create(String path, byte[] data, List<ACL> acl, CreateMode createMode) throws KeeperException {
 		return nodeService.create(path, data, acl, createMode);
 	}
 
 
+	@Override
 	public void create(final String path, byte[] data, List<ACL> acl, CreateMode createMode, AsyncCallback.StringCallback cb, Object ctx) {
 		nodeService.create(path, data, acl, createMode, cb, ctx);
 	}
 
+	@Override
 	public void delete(String path, int version) throws KeeperException {
 		nodeService.delete(path, version);
 	}
 
+	@Override
 	public List<String> getChildren(String path, boolean watch) throws KeeperException {
 		return nodeService.getChildren(path, watch);
 	}
 
+	@Override
 	public byte[] getData(String path, boolean watch, Stat stat) throws KeeperException {
 		return nodeService.getData(path, watch, stat);
 	}
 
+	@Override
 	public void getData(String path, boolean watch, AsyncCallback.DataCallback cb, Object ctx) {
 		nodeService.getData(path, watch, cb, ctx);
 	}
@@ -74,27 +81,33 @@ public class ZooKeeper implements NodeService {
 	}
 
 
+	@Override
 	public Stat setData(String path, byte[] data, int version) throws KeeperException {
 		return nodeService.setData(path, data, version);
 	}
 
+	@Override
 	public Stat exists(String path, boolean watch) {
 		return nodeService.exists(path, watch);
 	}
 
+	@Override
 	public Stat exists(String path, Watcher watcher) {
 		return nodeService.exists(path, watcher);
 	}
 
+	@Override
 	public void setACL(String path, List<ACL> acl, int version, AsyncCallback.StatCallback cb, Object ctx) {
 		nodeService.setACL(path, acl, version, cb, ctx);
 	}
 
 
+	@Override
 	public void getChildren(String path, boolean watch, AsyncCallback.ChildrenCallback cb, Object ctx) {
 		nodeService.getChildren(path, watch, cb, ctx);
 	}
 
+	@Override
 	public long getSessionId() {
 		return nodeService.getSessionId();
 	}

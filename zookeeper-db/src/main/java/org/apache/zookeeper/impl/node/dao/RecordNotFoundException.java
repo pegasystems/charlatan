@@ -1,4 +1,4 @@
-package org.apache.zookeeper.dao;
+package org.apache.zookeeper.impl.node.dao;
 
 /**
  * Created by natalia on 7/11/17.

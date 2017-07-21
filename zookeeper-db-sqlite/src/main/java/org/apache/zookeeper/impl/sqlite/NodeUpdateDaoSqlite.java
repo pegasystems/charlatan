@@ -1,7 +1,11 @@
-package org.apache.zookeeper.dao;
+package org.apache.zookeeper.impl.sqlite;
 
 import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.impl.node.bean.NodeUpdate;
+import org.apache.zookeeper.impl.node.dao.DataAccessException;
+import org.apache.zookeeper.impl.watches.dao.NodeUpdateDao;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -15,29 +19,26 @@ import java.util.List;
  */
 public class NodeUpdateDaoSqlite extends DatabaseConnection implements NodeUpdateDao {
 
-	public NodeUpdateDaoSqlite(String db) {
-		super(db);
-	}
+	private final static Logger logger = LoggerFactory.getLogger(NodeUpdateDaoSqlite.class.getName());
 
 	@Override
 	public void insertUpdate(int ownerBroker, NodeUpdate update) {
-
 		String sql = "INSERT INTO node_updates(type,path,broker,timestamp) VALUES (?,?,?,?)";
-
 		try (Connection c = getConnection()) {
-			try (PreparedStatement ps = c.prepareStatement(sql)) {
+			try (PreparedStatement ps = prepareStatement(c,sql)) {
 
 				ps.setString(1, update.getEventType().name());
 				ps.setString(2, update.getPath());
 				ps.setInt(3, ownerBroker);
 				ps.setLong(4, System.currentTimeMillis());
 
-				ps.executeUpdate();
+				executeUpdate(ps);
 			}
 		} catch (SQLException e) {
 			throw new DataAccessException(e);
 		}
 	}
+
 
 	@Override
 	public List<NodeUpdate> getNodeUpdates(int ownerBroker, int fromId) {
@@ -46,12 +47,12 @@ public class NodeUpdateDaoSqlite extends DatabaseConnection implements NodeUpdat
 		String sql = "SELECT id, type, path, timestamp FROM node_updates WHERE id > ? AND broker != ?";
 
 		try (Connection c = getConnection()) {
-			try (PreparedStatement ps = c.prepareStatement(sql)) {
+			try (PreparedStatement ps = prepareStatement(c,sql)) {
 
 				ps.setInt(1, fromId);
 				ps.setInt(2, ownerBroker);
 
-				ResultSet rs = ps.executeQuery();
+				ResultSet rs = executeQuery(ps);
 				while (rs.next()) {
 					int id = rs.getInt("id");
 					Watcher.Event.EventType type = Watcher.Event.EventType.valueOf(rs.getString("type"));
@@ -62,10 +63,11 @@ public class NodeUpdateDaoSqlite extends DatabaseConnection implements NodeUpdat
 				}
 			}
 		} catch (SQLException e) {
+			logger.error("pull updates error", e);
 			throw new DataAccessException(e);
 		}
-
 		return updates;
+
 	}
 
 	@Override
@@ -102,14 +104,11 @@ public class NodeUpdateDaoSqlite extends DatabaseConnection implements NodeUpdat
 
 	@Override
 	public int getLastUpdateId() {
-		List<NodeUpdate> updates = new ArrayList<>();
-
 		String sql = "SELECT ifnull( MAX(id),-1) as id FROM node_updates";
-
 		try (Connection c = getConnection()) {
-			try (PreparedStatement ps = c.prepareStatement(sql)) {
+			try (PreparedStatement ps = prepareStatement(c,sql)) {
 
-				ResultSet rs = ps.executeQuery();
+				ResultSet rs = executeQuery(ps);
 				if (rs.next()) {
 					return rs.getInt("id");
 				}

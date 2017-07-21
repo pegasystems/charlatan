@@ -1,4 +1,4 @@
-package org.apache.zookeeper.dao;
+package org.apache.zookeeper.impl.watches.dao;
 
 import org.apache.zookeeper.impl.node.bean.NodeUpdate;
 

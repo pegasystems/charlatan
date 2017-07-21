@@ -1,7 +1,9 @@
-package org.apache.zookeeper.dao;
+package org.apache.zookeeper.impl.node.dao;
 
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.impl.node.bean.Node;
+import org.apache.zookeeper.impl.node.dao.NodeDaoSqlite;
+import org.apache.zookeeper.impl.node.dao.RecordNotFoundException;
 import org.junit.BeforeClass;
 import org.junit.FixMethodOrder;
 import org.junit.Test;
