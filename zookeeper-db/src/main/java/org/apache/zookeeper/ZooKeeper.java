@@ -112,6 +112,11 @@ public class ZooKeeper implements NodeService {
 		return nodeService.getSessionId();
 	}
 
+	@Override
+	public void removeSessionNodes(long session) {
+
+	}
+
 
 	public enum States {
 		CONNECTING, ASSOCIATING, CONNECTED, CONNECTEDREADONLY,

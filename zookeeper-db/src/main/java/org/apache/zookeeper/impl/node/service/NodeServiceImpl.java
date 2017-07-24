@@ -3,6 +3,8 @@ package org.apache.zookeeper.impl.node.service;
 import org.apache.zookeeper.*;
 import org.apache.zookeeper.data.ACL;
 import org.apache.zookeeper.data.Stat;
+import org.apache.zookeeper.impl.broker.bean.BrokerInfo;
+import org.apache.zookeeper.impl.broker.service.BrokerMonitorService;
 import org.apache.zookeeper.impl.common.ZookeeperClassLoader;
 import org.apache.zookeeper.impl.node.bean.Node;
 import org.apache.zookeeper.impl.node.dao.RecordNotFoundException;
@@ -28,6 +30,8 @@ public class NodeServiceImpl implements NodeService {
 	private final ClientWatchManagerImpl watchManager;
 	private final RemoteNodeUpdates remoteNodeUpdates;
 	private final ExecutorService executor;
+
+	private BrokerMonitorService brokerMonitorService;
 	private Logger logger = LoggerFactory.getLogger(ZooKeeper.class.getName());
 	/**
 	 * Session associated with the client. Session is needed to identify Ephemeral nodes of the client and to remove
@@ -58,12 +62,14 @@ public class NodeServiceImpl implements NodeService {
 
 	@Override
 	public void close() {
-		List<String> ephemeralPaths = zkDatabase.getEphemeralPaths(session);
-		for (String ephemeralPath : ephemeralPaths) {
+
+		removeSessionNodes(session);
+
+		if (brokerMonitorService != null) {
 			try {
-				delete(ephemeralPath, -1);
-			} catch (KeeperException e) {
-				logger.error("Failed to remove session ephemeral node " + ephemeralPath, e);
+				brokerMonitorService.stop();
+			} catch (Exception e) {
+				logger.error("Failed to stop broker monitor service", e);
 			}
 		}
 
@@ -72,6 +78,8 @@ public class NodeServiceImpl implements NodeService {
 
 	@Override
 	public String create(String path, byte[] data, List<ACL> acl, CreateMode createMode) throws KeeperException {
+		checkIsBrokerInfo(path);
+
 		final Node node = new Node(path, data, createMode);
 
 		try {
@@ -104,6 +112,34 @@ public class NodeServiceImpl implements NodeService {
 		}
 	}
 
+	private void checkIsBrokerInfo(String path) {
+		// BrokerMonitorService can be initialized only when broker id is known
+		if (brokerMonitorService == null) {
+			if (path.startsWith("/brokers/ids/")) {
+				synchronized (this) {
+
+					int brokerId = Integer.parseInt(path.substring(path.lastIndexOf("/")+1));
+
+					brokerMonitorService = new BrokerMonitorService(ZookeeperClassLoader.getBrokerDaoImpl(), this, brokerId, session, sessionTimeout);
+					brokerMonitorService.start();
+				}
+			}
+		}
+	}
+
+	public void removeSessionNodes(long session) {
+			List<String> ephemeralPaths = zkDatabase.getEphemeralPaths(session);
+
+			for (String ephemeralPath : ephemeralPaths) {
+				try {
+					delete(ephemeralPath, -1);
+					logger.info(String.format("Invalidating session: ephemeral node deleted '%s'", ephemeralPath));
+
+				} catch (KeeperException e) {
+					logger.warn(String.format("Failed to remove session ephemeral node '%s'. This probably indicates that node was removed in meantime by different broker", ephemeralPath), e);
+				}
+			}
+	}
 
 	@Override
 	public void create(final String path, byte[] data, List<ACL> acl, CreateMode createMode, AsyncCallback.StringCallback cb, Object ctx) {
@@ -320,7 +356,7 @@ public class NodeServiceImpl implements NodeService {
 	}
 
 	private void processEvent(WatchedEvent event) {
-		if(event.getPath() != null ) {
+		if (event.getPath() != null) {
 			remoteNodeUpdates.processLocalWatchedEvent(event);
 		}
 		watchesNotifier.processWatchedEvent(event);

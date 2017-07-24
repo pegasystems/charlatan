@@ -78,6 +78,8 @@ public class ZKDatabase implements NodeDao {
 
 	@Override
 	public List<String> getEphemeralPaths(long session) {
-		return nodeTree.getSessionEphemeralPaths();
+
+		return nodeDao.getEphemeralPaths(session);
+//		return nodeTree.getSessionEphemeralPaths();
 	}
 }

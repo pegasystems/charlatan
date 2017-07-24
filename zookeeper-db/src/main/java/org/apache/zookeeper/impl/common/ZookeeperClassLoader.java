@@ -1,23 +1,20 @@
 package org.apache.zookeeper.impl.common;
 
+import org.apache.zookeeper.impl.broker.dao.BrokerDao;
 import org.apache.zookeeper.impl.node.dao.NodeDao;
-import org.apache.zookeeper.impl.node.service.ZKDatabase;
 import org.apache.zookeeper.impl.watches.dao.NodeUpdateDao;
 import org.apache.zookeeper.impl.watches.service.RemoteNodeUpdates;
 import org.apache.zookeeper.impl.watches.service.RemoteNodeUpdatesDbImpl;
 import org.reflections.ReflectionUtils;
 import org.reflections.Reflections;
-import org.reflections.scanners.Scanner;
-import org.reflections.scanners.SubTypesScanner;
 import org.reflections.util.ClasspathHelper;
 import org.reflections.util.ConfigurationBuilder;
-import org.reflections.util.FilterBuilder;
 
 import java.lang.annotation.Annotation;
 import java.util.Set;
 
 /**
- * Created by natalia on 7/19/17.
+ * Loads dao implementations from classpath on runtime
  */
 public class ZookeeperClassLoader {
 	private static Reflections reflections= //new Reflections(ClasspathHelper.forPackage("org.apache.zookeeper", ClasspathHelper.contextClassLoader()));
@@ -25,10 +22,17 @@ public class ZookeeperClassLoader {
 				.addUrls(ClasspathHelper.forPackage("org.apache.zookeeper"))
 	            .setExpandSuperTypes(false));
 
-	private static NodeDao nodeDaoImpl = retrieveNodeDabImpl();
-	private static RemoteNodeUpdates remoteNodeUpdates = loadRemoteNodeUpdatesImpl();
+	private static NodeDao nodeDaoImpl;
+	private static BrokerDao brokerDaoImpl;
+	private static RemoteNodeUpdates remoteNodeUpdates;
 
-	private static NodeDao retrieveNodeDabImpl() {
+	static {
+		loadNodeDaoImpl();
+		loadBrokerDaoImpl();
+		loadRemoteNodeUpdatesImpl();
+	}
+
+	private static void loadNodeDaoImpl() {
 
 		Set<Class<? extends NodeDao>> daoImpls = reflections.getSubTypesOf(NodeDao.class);
 		if (daoImpls.size() == 0) {
@@ -56,13 +60,13 @@ public class ZookeeperClassLoader {
 		}
 
 		try {
-			return daoImplClass.newInstance();
+			nodeDaoImpl = daoImplClass.newInstance();
 		} catch (Exception e) {
 			throw new ZookeeperRuntimeException("Failed to instantiate NodeDao", e);
 		}
 	}
 
-	private static RemoteNodeUpdates loadRemoteNodeUpdatesImpl() {
+	private static void loadRemoteNodeUpdatesImpl() {
 		Set<Class<? extends NodeUpdateDao>> NodeUpdateDaoImpls = reflections.getSubTypesOf(NodeUpdateDao.class);
 
 		if (NodeUpdateDaoImpls.size() == 0) {
@@ -78,9 +82,30 @@ public class ZookeeperClassLoader {
 		try {
 			NodeUpdateDao nodeUpdateDao = nodeUpdateDaoImpl.newInstance();
 
-			return RemoteNodeUpdatesDbImpl.class.getConstructor(NodeUpdateDao.class).newInstance(nodeUpdateDao);
+			remoteNodeUpdates = RemoteNodeUpdatesDbImpl.class.getConstructor(NodeUpdateDao.class).newInstance(nodeUpdateDao);
 		} catch (Exception e) {
 			throw new ZookeeperRuntimeException("Failed to instantiate NodeUpdateDao", e);
+		}
+	}
+
+	private static void loadBrokerDaoImpl() {
+		Set<Class<? extends BrokerDao>> brokerDaoImpls = reflections.getSubTypesOf(BrokerDao.class);
+
+		if (brokerDaoImpls.size() == 0) {
+			throw new RuntimeException("No BrokerDao implementation found");
+		}
+
+		if (brokerDaoImpls.size() > 1) {
+			throw new RuntimeException("Multiple BrokerDao implementations found");
+		}
+
+		Class<? extends BrokerDao> brokerDao = brokerDaoImpls.iterator().next();
+
+		try {
+			brokerDaoImpl = brokerDao.newInstance();
+
+		} catch (Exception e) {
+			throw new ZookeeperRuntimeException("Failed to instantiate BrokerDao", e);
 		}
 	}
 
@@ -90,5 +115,9 @@ public class ZookeeperClassLoader {
 
 	public static RemoteNodeUpdates getRemoteNodeUpdates() {
 		return remoteNodeUpdates;
+	}
+
+	public static BrokerDao getBrokerDaoImpl() {
+		return brokerDaoImpl;
 	}
 }
