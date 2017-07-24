@@ -1,4 +1,3 @@
 rootProject.name = projectName
 include 'zookeeper-db'
-include 'zk-client-db'
 include 'zookeeper-db-sqlite'
