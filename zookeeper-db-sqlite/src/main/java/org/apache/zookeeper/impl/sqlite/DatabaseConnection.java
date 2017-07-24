@@ -7,15 +7,13 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.sql.*;
-import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.Callable;
-import java.util.concurrent.Executor;
 
 /**
  * Created by natalia on 7/17/17.
  */
-public class DatabaseConnection {
+public abstract class DatabaseConnection {
 
 	private static long retryTimeoutInMillis = 60000;
 	private static String database;
@@ -30,6 +28,12 @@ public class DatabaseConnection {
 		}
 
 		readProperties();
+	}
+
+
+	public DatabaseConnection() {
+		// Temporal hack to setup db while db migrations aren't handled externally.
+		setup();
 	}
 
 	private static void readProperties() {
@@ -67,7 +71,7 @@ public class DatabaseConnection {
 		});
 	}
 
-	protected PreparedStatement prepareStatement(Connection c, String sql ) throws SQLException {
+	protected PreparedStatement prepareStatement(Connection c, String sql) throws SQLException {
 		return retryUntilSucceeded(() -> {
 			return c.prepareStatement(sql);
 		});
@@ -112,4 +116,7 @@ public class DatabaseConnection {
 			}
 		}
 	}
+
+	protected abstract void setup();
+
 }

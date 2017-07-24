@@ -119,4 +119,21 @@ public class NodeUpdateDaoSqlite extends DatabaseConnection implements NodeUpdat
 			throw new DataAccessException(e);
 		}
 	}
+
+	@Override
+	protected void setup() {
+		String createTable = "CREATE TABLE IF NOT EXISTS `node_updates` ( `id` integer PRIMARY KEY,   \n" +
+				"`type` text NOT NULL, \n" +
+				"`path`,\n" +
+				"`broker` integer,\n" +
+				"`timestamp`  long NOT NULL)";
+
+		try (Connection c = getConnection()) {
+			try (PreparedStatement ps = prepareStatement(c, createTable)) {
+				executeUpdate(ps);
+			}
+		} catch (Exception e) {
+			//
+		}
+	}
 }

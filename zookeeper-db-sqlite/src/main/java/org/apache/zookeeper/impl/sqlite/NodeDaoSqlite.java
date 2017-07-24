@@ -236,9 +236,7 @@ public class NodeDaoSqlite extends DatabaseConnection implements NodeDao {
 		throw new RecordNotFoundException(path + " not found");
 	}
 
-	/**
-	 * Temporary for quick test
-	 */
+	@Override
 	protected void setup() {
 		String createTable = "CREATE TABLE IF NOT EXISTS `nodes` (  `pk` integer PRIMARY KEY, `fk` integer NULL,  \n" +
 				"`name` text NOT NULL, \n" +
@@ -261,9 +259,8 @@ public class NodeDaoSqlite extends DatabaseConnection implements NodeDao {
 				ps.setLong(1, System.currentTimeMillis());
 				executeUpdate(ps);
 			}
-		} catch (SQLException e) {
-			throw new DataAccessException(e);
+		} catch (Exception e) {
+			//
 		}
-
 	}
 }
