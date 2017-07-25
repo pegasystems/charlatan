@@ -42,7 +42,7 @@ public class BrokerMonitorService {
 
 	private void invalidateStaleBrokers() {
 		try {
-			List<BrokerInfo> staleBrokers = brokerDao.getBrokersInfo(System.currentTimeMillis() - sessionTimeout);
+			List<BrokerInfo> staleBrokers = brokerDao.getBrokersInfo(System.currentTimeMillis() - sessionTimeout * 3);
 
 			for (BrokerInfo brokerInfo : staleBrokers) {
 				logger.info(String.format("Found stale broker %d session %d, invalidating the session", brokerInfo.getBrokerId(), brokerInfo.getSession()));

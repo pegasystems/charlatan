@@ -3,7 +3,6 @@ package org.apache.zookeeper.impl.node.service;
 import org.apache.zookeeper.*;
 import org.apache.zookeeper.data.ACL;
 import org.apache.zookeeper.data.Stat;
-import org.apache.zookeeper.impl.broker.bean.BrokerInfo;
 import org.apache.zookeeper.impl.broker.service.BrokerMonitorService;
 import org.apache.zookeeper.impl.common.ZookeeperClassLoader;
 import org.apache.zookeeper.impl.node.bean.Node;
@@ -117,28 +116,29 @@ public class NodeServiceImpl implements NodeService {
 		if (brokerMonitorService == null) {
 			if (path.startsWith("/brokers/ids/")) {
 				synchronized (this) {
+					if (brokerMonitorService == null) {
+						int brokerId = Integer.parseInt(path.substring(path.lastIndexOf("/") + 1));
 
-					int brokerId = Integer.parseInt(path.substring(path.lastIndexOf("/")+1));
-
-					brokerMonitorService = new BrokerMonitorService(ZookeeperClassLoader.getBrokerDaoImpl(), this, brokerId, session, sessionTimeout);
-					brokerMonitorService.start();
+						brokerMonitorService = new BrokerMonitorService(ZookeeperClassLoader.getBrokerDaoImpl(), this, brokerId, session, sessionTimeout);
+						brokerMonitorService.start();
+					}
 				}
 			}
 		}
 	}
 
 	public void removeSessionNodes(long session) {
-			List<String> ephemeralPaths = zkDatabase.getEphemeralPaths(session);
+		List<String> ephemeralPaths = zkDatabase.getEphemeralPaths(session);
 
-			for (String ephemeralPath : ephemeralPaths) {
-				try {
-					delete(ephemeralPath, -1);
-					logger.info(String.format("Invalidating session: ephemeral node deleted '%s'", ephemeralPath));
+		for (String ephemeralPath : ephemeralPaths) {
+			try {
+				delete(ephemeralPath, -1);
+				logger.info(String.format("Invalidating session: ephemeral node deleted '%s'", ephemeralPath));
 
-				} catch (KeeperException e) {
-					logger.warn(String.format("Failed to remove session ephemeral node '%s'. This probably indicates that node was removed in meantime by different broker", ephemeralPath), e);
-				}
+			} catch (KeeperException e) {
+				logger.warn(String.format("Failed to remove session ephemeral node '%s'. This probably indicates that node was removed in meantime by different broker", ephemeralPath), e);
 			}
+		}
 	}
 
 	@Override

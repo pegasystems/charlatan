@@ -249,14 +249,16 @@ public class NodeDaoSqlite extends DatabaseConnection implements NodeDao {
 				"`session` integer,\n" +
 				"FOREIGN KEY (fk) REFERENCES nodes(pk), UNIQUE(name) )";
 
-		String insertRoot = "INSERT INTO nodes (name,create_time, modify_time) VALUES (\"/\",'1499865299000','1499865299000');";
+		String insertRoot = "INSERT INTO nodes (name,create_time, modify_time) VALUES (\"/\",?,?);";
 
 		try (Connection c = getConnection()) {
 			try (PreparedStatement ps = prepareStatement(c,createTable)) {
 				executeUpdate(ps);
 			}
 			try (PreparedStatement ps = prepareStatement(c,insertRoot)) {
-				ps.setLong(1, System.currentTimeMillis());
+				long now = System.currentTimeMillis();
+				ps.setLong(1, now);
+				ps.setLong(2, now);
 				executeUpdate(ps);
 			}
 		} catch (Exception e) {
