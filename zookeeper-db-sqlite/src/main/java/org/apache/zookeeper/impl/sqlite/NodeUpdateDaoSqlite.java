@@ -1,8 +1,8 @@
 package org.apache.zookeeper.impl.sqlite;
 
 import org.apache.zookeeper.Watcher;
-import org.apache.zookeeper.impl.node.bean.NodeUpdate;
 import org.apache.zookeeper.impl.node.dao.DataAccessException;
+import org.apache.zookeeper.impl.node.bean.NodeUpdate;
 import org.apache.zookeeper.impl.watches.dao.NodeUpdateDao;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

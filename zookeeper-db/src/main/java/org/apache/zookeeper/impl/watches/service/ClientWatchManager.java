@@ -16,10 +16,54 @@ public interface ClientWatchManager {
 	 * event, possibly at some later time.
 	 *
 	 * @param state event state
-	 * @param type event type
-	 * @param path event path
+	 * @param type  event type
+	 * @param path  event path
 	 * @return may be empty set but must not be null
 	 */
-	public Set<Watcher> materialize(Watcher.Event.KeeperState state,
-									Watcher.Event.EventType type, String path);
+	Set<Watcher> materialize(Watcher.Event.KeeperState state,
+							 Watcher.Event.EventType type, String path);
+
+	/**
+	 * Returns the default watcher
+	 *
+	 * @return
+	 */
+	Watcher getDefaultWatcher();
+
+	/**
+	 * Register new "exist" watch for requested path. The watch will be triggered by created event.
+	 *
+	 * @param watcher
+	 * @param path
+	 */
+	void registerExistWatch(Watcher watcher, String path);
+
+	/**
+	 * Register default watch with the requested path. The watch will be triggered by created event.
+	 *
+	 * @param path
+	 */
+	void registerExistWatch(String path);
+
+	/**
+	 * Register watch for the requested path. The watch will be triggered by node data change.
+	 * @param watcher
+	 * @param path
+	 */
+	void registerDataWatch(Watcher watcher, String path);
+
+	/**
+	 * Register default watch for the requested path. The watch will be triggered by node data change
+	 *
+	 * @param path
+	 */
+	void registerDataWatch(String path);
+
+	/**
+	 * Register default watch for child changes for the requested path. The watch will be triggered if new sub-node is
+	 * created or deleted or the node itself is removed.
+	 *
+	 * @param path
+	 */
+	void registerChildWatch(String path);
 }

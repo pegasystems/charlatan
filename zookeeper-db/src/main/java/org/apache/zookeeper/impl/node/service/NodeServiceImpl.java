@@ -7,6 +7,7 @@ import org.apache.zookeeper.impl.broker.service.BrokerMonitorService;
 import org.apache.zookeeper.impl.common.ZookeeperClassLoader;
 import org.apache.zookeeper.impl.node.bean.Node;
 import org.apache.zookeeper.impl.node.dao.RecordNotFoundException;
+import org.apache.zookeeper.impl.watches.service.ClientWatchManager;
 import org.apache.zookeeper.impl.watches.service.ClientWatchManagerImpl;
 import org.apache.zookeeper.impl.watches.service.RemoteNodeUpdates;
 import org.apache.zookeeper.impl.watches.service.WatchesNotifier;
@@ -14,7 +15,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.*;
+import java.util.List;
+import java.util.Random;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -26,7 +28,7 @@ public class NodeServiceImpl implements NodeService {
 	private final int sessionTimeout;
 	private final ZKDatabase zkDatabase;
 	private final WatchesNotifier watchesNotifier;
-	private final ClientWatchManagerImpl watchManager;
+	private final ClientWatchManager watchManager;
 	private final RemoteNodeUpdates remoteNodeUpdates;
 	private final ExecutorService executor;
 
@@ -215,8 +217,7 @@ public class NodeServiceImpl implements NodeService {
 			Node node = zkDatabase.get(path);
 
 			if (watch) {
-				WatchRegistration wr = new ChildWatchRegistration(watchManager.getDefaultWatcher(), path);
-				wr.register(0);
+				watchManager.registerChildWatch(path);
 			}
 
 			return node.getChildren();
@@ -250,8 +251,7 @@ public class NodeServiceImpl implements NodeService {
 		}
 
 		if (watch) {
-			WatchRegistration wcb = new DataWatchRegistration(watchManager.getDefaultWatcher(), path);
-			wcb.register(0);
+			watchManager.registerDataWatch(path);
 		}
 		return node.getData();
 	}
@@ -264,8 +264,7 @@ public class NodeServiceImpl implements NodeService {
 				Node node = getNode(path);
 
 				if (watch) {
-					WatchRegistration wcb = new DataWatchRegistration(watchManager.getDefaultWatcher(), path);
-					wcb.register(0);
+					watchManager.registerDataWatch(path);
 				}
 
 				Stat stat = new Stat(node.getStat());
@@ -294,7 +293,6 @@ public class NodeServiceImpl implements NodeService {
 
 		if (version >= 0 && node.getStat().getVersion() != version) {
 			throw new KeeperException.BadVersionException(path);
-//				logger.warn(String.format("Cached zkVersion [%d] not equal to that in zookeeper[%d] for path '%s'", version, node.getVersion(), path));
 		}
 
 		zkDatabase.update(path, data, version + 1, System.currentTimeMillis());
@@ -332,8 +330,11 @@ public class NodeServiceImpl implements NodeService {
 		}
 
 		if (watcher != null) {
-			WatchRegistration wcb = new ExistsWatchRegistration(watcher, path);
-			wcb.register(0);
+			if (stat != null) {
+				watchManager.registerDataWatch( watcher, path);
+			} else {
+				watchManager.registerExistWatch(watcher, path);
+			}
 		}
 
 		return stat;
@@ -361,93 +362,4 @@ public class NodeServiceImpl implements NodeService {
 		}
 		watchesNotifier.processWatchedEvent(event);
 	}
-
-	/**
-	 * Register a watcher for a particular path.
-	 */
-	abstract class WatchRegistration {
-		private Watcher watcher;
-		private String clientPath;
-
-		public WatchRegistration(Watcher watcher, String clientPath) {
-			this.watcher = watcher;
-			this.clientPath = clientPath;
-		}
-
-		abstract protected Map<String, Set<Watcher>> getWatches(int rc);
-
-		/**
-		 * Register the watcher with the set of watches on path.
-		 *
-		 * @param rc the result code of the operation that attempted to
-		 *           add the watch on the path.
-		 */
-		public void register(int rc) {
-			if (shouldAddWatch(rc)) {
-				Map<String, Set<Watcher>> watches = getWatches(rc);
-				synchronized (watches) {
-					Set<Watcher> watchers = watches.get(clientPath);
-					if (watchers == null) {
-						watchers = new HashSet<Watcher>();
-						watches.put(clientPath, watchers);
-					}
-					watchers.add(watcher);
-				}
-			}
-		}
-
-		/**
-		 * Determine whether the watch should be added based on return code.
-		 *
-		 * @param rc the result code of the operation that attempted to add the
-		 *           watch on the node
-		 * @return true if the watch should be added, otw false
-		 */
-		protected boolean shouldAddWatch(int rc) {
-			return rc == 0;
-		}
-	}
-
-	/**
-	 * Handle the special case of exists watches - they add a watcher
-	 * even in the case where NONODE result code is returned.
-	 */
-	class ExistsWatchRegistration extends WatchRegistration {
-		public ExistsWatchRegistration(Watcher watcher, String clientPath) {
-			super(watcher, clientPath);
-		}
-
-		@Override
-		protected Map<String, Set<Watcher>> getWatches(int rc) {
-			return rc == 0 ? watchManager.getDataWatches() : watchManager.getExistWatches();
-		}
-
-		@Override
-		protected boolean shouldAddWatch(int rc) {
-			return rc == 0 || rc == KeeperException.Code.NONODE.intValue();
-		}
-	}
-
-	class DataWatchRegistration extends WatchRegistration {
-		public DataWatchRegistration(Watcher watcher, String clientPath) {
-			super(watcher, clientPath);
-		}
-
-		@Override
-		protected Map<String, Set<Watcher>> getWatches(int rc) {
-			return watchManager.getDataWatches();
-		}
-	}
-
-	class ChildWatchRegistration extends WatchRegistration {
-		public ChildWatchRegistration(Watcher watcher, String clientPath) {
-			super(watcher, clientPath);
-		}
-
-		@Override
-		protected Map<String, Set<Watcher>> getWatches(int rc) {
-			return watchManager.getChildWatches();
-		}
-	}
-
 }

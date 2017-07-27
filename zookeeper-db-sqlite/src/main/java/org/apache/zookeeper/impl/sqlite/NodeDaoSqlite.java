@@ -3,10 +3,10 @@ package org.apache.zookeeper.impl.sqlite;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.data.Stat;
 import org.apache.zookeeper.impl.common.Service;
-import org.apache.zookeeper.impl.node.bean.Node;
 import org.apache.zookeeper.impl.node.dao.DataAccessException;
 import org.apache.zookeeper.impl.node.dao.NodeDao;
 import org.apache.zookeeper.impl.node.dao.RecordNotFoundException;
+import org.apache.zookeeper.impl.node.bean.Node;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

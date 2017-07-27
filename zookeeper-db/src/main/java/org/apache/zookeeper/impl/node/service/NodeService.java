@@ -174,6 +174,12 @@ public interface NodeService {
 	 */
 	Stat exists(String path, boolean watch);
 
+	/**
+	 * It is used form Kafka unit tests
+	 * @param path
+	 * @param watcher
+	 * @return
+	 */
 	Stat exists(String path, Watcher watcher);
 
 	void setACL(String path, List<ACL> acl, int version, AsyncCallback.StatCallback cb, Object ctx);
