@@ -20,9 +20,13 @@ package org.apache.zookeeper;
 
 import org.apache.zookeeper.data.ACL;
 import org.apache.zookeeper.data.Stat;
+import org.apache.zookeeper.impl.broker.service.BrokerMonitorService;
+import org.apache.zookeeper.impl.common.ZookeeperClassLoader;
 import org.apache.zookeeper.impl.node.bean.Node;
 import org.apache.zookeeper.impl.node.service.NodeService;
 import org.apache.zookeeper.impl.node.service.NodeServiceImpl;
+import org.apache.zookeeper.impl.node.service.ZKDatabase;
+import org.apache.zookeeper.impl.watches.service.ClientWatchManagerImpl;
 
 import java.io.IOException;
 import java.util.List;
@@ -33,7 +37,11 @@ public class ZooKeeper implements NodeService {
 	private NodeService nodeService;
 
 	public ZooKeeper(String connectString, int sessionTimeout, Watcher watcher) throws IOException {
-		this.nodeService = new NodeServiceImpl(sessionTimeout, watcher);
+		this.nodeService = new NodeServiceImpl(
+				new ZKDatabase(ZookeeperClassLoader.getNodeDao()),
+				ZookeeperClassLoader.getRemoteNodeUpdates(),
+				new ClientWatchManagerImpl(watcher, false),
+				new BrokerMonitorService(ZookeeperClassLoader.getBrokerDaoImpl(), this, sessionTimeout));
 	}
 
 	public ZooKeeper(NodeService nodeService) {

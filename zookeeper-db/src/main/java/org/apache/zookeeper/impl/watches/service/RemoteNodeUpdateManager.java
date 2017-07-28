@@ -7,11 +7,11 @@ import java.util.concurrent.CopyOnWriteArrayList;
 /**
  * Created by natalia on 7/20/17.
  */
-public abstract class RemoteNodeUpdates {
+public abstract class RemoteNodeUpdateManager {
 
 	private CopyOnWriteArrayList< NodeUpdateListener> nodeUpdateListeners;
 
-	public RemoteNodeUpdates(){
+	public RemoteNodeUpdateManager(){
 		nodeUpdateListeners = new CopyOnWriteArrayList<>();
 	}
 

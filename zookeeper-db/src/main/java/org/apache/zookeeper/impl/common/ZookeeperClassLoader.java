@@ -3,8 +3,8 @@ package org.apache.zookeeper.impl.common;
 import org.apache.zookeeper.impl.broker.dao.BrokerDao;
 import org.apache.zookeeper.impl.node.dao.NodeDao;
 import org.apache.zookeeper.impl.watches.dao.NodeUpdateDao;
-import org.apache.zookeeper.impl.watches.service.RemoteNodeUpdates;
-import org.apache.zookeeper.impl.watches.service.RemoteNodeUpdatesDbImpl;
+import org.apache.zookeeper.impl.watches.service.RemoteNodeUpdateManager;
+import org.apache.zookeeper.impl.watches.service.RemoteNodeUpdateManagerImpl;
 import org.reflections.ReflectionUtils;
 import org.reflections.Reflections;
 import org.reflections.util.ClasspathHelper;
@@ -24,7 +24,7 @@ public class ZookeeperClassLoader {
 
 	private static NodeDao nodeDaoImpl;
 	private static BrokerDao brokerDaoImpl;
-	private static RemoteNodeUpdates remoteNodeUpdates;
+	private static RemoteNodeUpdateManager remoteNodeUpdates;
 
 	static {
 		loadNodeDaoImpl();
@@ -82,7 +82,7 @@ public class ZookeeperClassLoader {
 		try {
 			NodeUpdateDao nodeUpdateDao = nodeUpdateDaoImpl.newInstance();
 
-			remoteNodeUpdates = RemoteNodeUpdatesDbImpl.class.getConstructor(NodeUpdateDao.class).newInstance(nodeUpdateDao);
+			remoteNodeUpdates = RemoteNodeUpdateManagerImpl.class.getConstructor(NodeUpdateDao.class).newInstance(nodeUpdateDao);
 		} catch (Exception e) {
 			throw new ZookeeperRuntimeException("Failed to instantiate NodeUpdateDao", e);
 		}
@@ -113,7 +113,7 @@ public class ZookeeperClassLoader {
 		return nodeDaoImpl;
 	}
 
-	public static RemoteNodeUpdates getRemoteNodeUpdates() {
+	public static RemoteNodeUpdateManager getRemoteNodeUpdates() {
 		return remoteNodeUpdates;
 	}
 

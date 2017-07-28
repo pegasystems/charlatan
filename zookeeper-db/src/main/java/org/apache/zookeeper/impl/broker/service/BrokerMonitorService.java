@@ -22,22 +22,22 @@ public class BrokerMonitorService {
 	private final ScheduledExecutorService brokerInfoUpdater;
 	private final ScheduledExecutorService brokersChecker;
 	private final long sessionTimeout;
-	private final int brokerId;
-	private final long session;
 	private final BrokerDao brokerDao;
 	private final NodeService nodeService;
-
+	private int brokerId;
+	private long session;
 	private long lastSeen;
+	private State state;
 
-	public BrokerMonitorService(BrokerDao brokerDao, NodeService nodeService, int brokerId, long session, long sessionTimeout) {
+	public BrokerMonitorService(BrokerDao brokerDao, NodeService nodeService, long sessionTimeout) {
 		this.brokerDao = brokerDao;
 		this.sessionTimeout = sessionTimeout;
-		this.brokerId = brokerId;
-		this.session = session;
 		this.nodeService = nodeService;
 
 		this.brokerInfoUpdater = Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("BrokerMonitor"));
 		this.brokersChecker = Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("inactive-broker-checker"));
+
+		setState(State.CREATED);
 	}
 
 	private void invalidateStaleBrokers() {
@@ -57,11 +57,15 @@ public class BrokerMonitorService {
 		}
 	}
 
-	public void start() {
+	public synchronized void start(int brokerId, long session) {
+		checkState(State.CREATED);
+		this.brokerId = brokerId;
+		this.session = session;
 		// Stale brokers should be invalidated during startup. This is important in case one of the stale brokers is current broker with previous session.
 		invalidateStaleBrokers();
 		brokerInfoUpdater.scheduleAtFixedRate(() -> updateBrokerInfo(), sessionTimeout / 2, sessionTimeout / 2, TimeUnit.MILLISECONDS);
 		brokersChecker.scheduleAtFixedRate(() -> invalidateStaleBrokers(), sessionTimeout, sessionTimeout, TimeUnit.MILLISECONDS);
+		setState(State.STARTED);
 	}
 
 	private void updateBrokerInfo() {
@@ -73,20 +77,44 @@ public class BrokerMonitorService {
 		}
 	}
 
-	public void stop() {
-		try {
-			brokerInfoUpdater.shutdown();
-		} catch (Exception e) {
-		}
+	public synchronized void stop() {
+		if (state == State.STARTED) {
+			try {
+				brokerInfoUpdater.shutdown();
+			} catch (Exception e) {
+			}
 
-		try {
-			brokersChecker.shutdown();
-		} catch (Exception e) {
-		}
+			try {
+				brokersChecker.shutdown();
+			} catch (Exception e) {
+			}
 
-		try {
-			brokerDao.delete(new BrokerInfo(brokerId, session, lastSeen));
-		} catch (Exception e) {
+			try {
+				brokerDao.delete(new BrokerInfo(brokerId, session, lastSeen));
+			} catch (Exception e) {
+			}
+			setState(State.STOPPED);
 		}
+	}
+
+	private void checkState(State state) {
+		if (this.state != state) {
+			throw new IllegalStateException(String.format("Expected state is %s but current state is %s", state, this.state));
+		}
+	}
+
+	private void setState(State state) {
+		this.state = state;
+
+	}
+
+	public boolean isStarted() {
+		return this.state == State.STARTED;
+	}
+
+	enum State {
+		CREATED,
+		STARTED,
+		STOPPED
 	}
 }

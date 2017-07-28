@@ -4,12 +4,10 @@ import org.apache.zookeeper.*;
 import org.apache.zookeeper.data.ACL;
 import org.apache.zookeeper.data.Stat;
 import org.apache.zookeeper.impl.broker.service.BrokerMonitorService;
-import org.apache.zookeeper.impl.common.ZookeeperClassLoader;
 import org.apache.zookeeper.impl.node.bean.Node;
 import org.apache.zookeeper.impl.node.dao.RecordNotFoundException;
 import org.apache.zookeeper.impl.watches.service.ClientWatchManager;
-import org.apache.zookeeper.impl.watches.service.ClientWatchManagerImpl;
-import org.apache.zookeeper.impl.watches.service.RemoteNodeUpdates;
+import org.apache.zookeeper.impl.watches.service.RemoteNodeUpdateManager;
 import org.apache.zookeeper.impl.watches.service.WatchesNotifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,11 +23,10 @@ import java.util.concurrent.Executors;
  */
 public class NodeServiceImpl implements NodeService {
 
-	private final int sessionTimeout;
 	private final ZKDatabase zkDatabase;
 	private final WatchesNotifier watchesNotifier;
 	private final ClientWatchManager watchManager;
-	private final RemoteNodeUpdates remoteNodeUpdates;
+	private final RemoteNodeUpdateManager remoteNodeUpdateManager;
 	private final ExecutorService executor;
 
 	private BrokerMonitorService brokerMonitorService;
@@ -40,19 +37,20 @@ public class NodeServiceImpl implements NodeService {
 	 */
 	private long session;
 
-	public NodeServiceImpl(int sessionTimeout, Watcher watcher) throws IOException {
-		// TODO: implement timeouts
-		this.sessionTimeout = sessionTimeout;
-		this.zkDatabase = new ZKDatabase(ZookeeperClassLoader.getNodeDao());
+	public NodeServiceImpl(ZKDatabase zkDatabase, RemoteNodeUpdateManager remoteNodeUpdateManager, ClientWatchManager clientWatchManager, BrokerMonitorService brokerMonitroService) throws IOException {
+
+		this.zkDatabase = zkDatabase;
+
+		this.watchManager = clientWatchManager;
+		this.watchesNotifier = new WatchesNotifier(watchManager);
+
+		this.remoteNodeUpdateManager = remoteNodeUpdateManager;
+		this.remoteNodeUpdateManager.addNodeUpdateListener(watchesNotifier);
+
+		this.brokerMonitorService = brokerMonitroService;
 
 		// Generate session
 		this.session = new Random().nextLong();
-
-		watchManager = new ClientWatchManagerImpl(watcher, false);
-		watchesNotifier = new WatchesNotifier(watchManager);
-
-		remoteNodeUpdates = ZookeeperClassLoader.getRemoteNodeUpdates();
-		remoteNodeUpdates.addNodeUpdateListener(watchesNotifier);
 
 		executor = Executors.newCachedThreadPool();
 		executor.submit(watchesNotifier);
@@ -115,16 +113,10 @@ public class NodeServiceImpl implements NodeService {
 
 	private void checkIsBrokerInfo(String path) {
 		// BrokerMonitorService can be initialized only when broker id is known
-		if (brokerMonitorService == null) {
+		if (!brokerMonitorService.isStarted()) {
 			if (path.startsWith("/brokers/ids/")) {
-				synchronized (this) {
-					if (brokerMonitorService == null) {
-						int brokerId = Integer.parseInt(path.substring(path.lastIndexOf("/") + 1));
-
-						brokerMonitorService = new BrokerMonitorService(ZookeeperClassLoader.getBrokerDaoImpl(), this, brokerId, session, sessionTimeout);
-						brokerMonitorService.start();
-					}
-				}
+				int brokerId = Integer.parseInt(path.substring(path.lastIndexOf("/") + 1));
+				brokerMonitorService.start(brokerId, session);
 			}
 		}
 	}
@@ -331,7 +323,7 @@ public class NodeServiceImpl implements NodeService {
 
 		if (watcher != null) {
 			if (stat != null) {
-				watchManager.registerDataWatch( watcher, path);
+				watchManager.registerDataWatch(watcher, path);
 			} else {
 				watchManager.registerExistWatch(watcher, path);
 			}
@@ -358,7 +350,7 @@ public class NodeServiceImpl implements NodeService {
 
 	private void processEvent(WatchedEvent event) {
 		if (event.getPath() != null) {
-			remoteNodeUpdates.processLocalWatchedEvent(event);
+			remoteNodeUpdateManager.processLocalWatchedEvent(event);
 		}
 		watchesNotifier.processWatchedEvent(event);
 	}
