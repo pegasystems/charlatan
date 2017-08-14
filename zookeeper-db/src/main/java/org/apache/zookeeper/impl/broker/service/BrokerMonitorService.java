@@ -63,8 +63,18 @@ public class BrokerMonitorService {
 		this.session = session;
 		// Stale brokers should be invalidated during startup. This is important in case one of the stale brokers is current broker with previous session.
 		invalidateStaleBrokers();
-		brokerInfoUpdater.scheduleAtFixedRate(() -> updateBrokerInfo(), sessionTimeout / 2, sessionTimeout / 2, TimeUnit.MILLISECONDS);
-		brokersChecker.scheduleAtFixedRate(() -> invalidateStaleBrokers(), sessionTimeout, sessionTimeout, TimeUnit.MILLISECONDS);
+		brokerInfoUpdater.scheduleAtFixedRate(new Runnable() {
+			@Override
+			public void run() {
+				updateBrokerInfo();
+			}
+		}, sessionTimeout / 2, sessionTimeout / 2, TimeUnit.MILLISECONDS);
+		brokersChecker.scheduleAtFixedRate(new Runnable() {
+			@Override
+			public void run() {
+				invalidateStaleBrokers();
+			}
+		}, sessionTimeout, sessionTimeout, TimeUnit.MILLISECONDS);
 		setState(State.STARTED);
 	}
 

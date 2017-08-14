@@ -36,10 +36,20 @@ public class RemoteNodeUpdateManagerImpl extends RemoteNodeUpdateManager {
 		this.lastPulledId = -1;
 
 		cleanerService = Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("Updates-cleaner"));
-		cleanerService.scheduleWithFixedDelay(() -> clearUpdates(), 1, 1, TimeUnit.MINUTES);
+		cleanerService.scheduleWithFixedDelay(new Runnable() {
+			@Override
+			public void run() {
+				clearUpdates();
+			}
+		}, 1, 1, TimeUnit.MINUTES);
 
 		updatesPullService = Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("Pull-updates"));
-		updatesPullService.scheduleWithFixedDelay(() -> pullUpdates(), 5, 500, TimeUnit.MILLISECONDS);
+		updatesPullService.scheduleWithFixedDelay(new Runnable() {
+			@Override
+			public void run() {
+				pullUpdates();
+			}
+		}, 5, 500, TimeUnit.MILLISECONDS);
 	}
 
 	private void pullUpdates() {

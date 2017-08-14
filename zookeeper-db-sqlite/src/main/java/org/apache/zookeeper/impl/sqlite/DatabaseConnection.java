@@ -66,30 +66,42 @@ public abstract class DatabaseConnection {
 	}
 
 	protected Connection getConnection() throws SQLException {
-		return retryUntilSucceeded(() -> {
-			return DriverManager.getConnection("jdbc:sqlite:" + database, config.toProperties());
+		return retryUntilSucceeded(new Callable<Connection>() {
+			@Override
+			public Connection call() throws Exception {
+				return DriverManager.getConnection("jdbc:sqlite:" + database, config.toProperties());
+			}
 		});
 	}
 
-	protected PreparedStatement prepareStatement(Connection c, String sql) throws SQLException {
-		return retryUntilSucceeded(() -> {
-			return c.prepareStatement(sql);
+	protected PreparedStatement prepareStatement(final Connection c, final String sql) throws SQLException {
+		return retryUntilSucceeded(new Callable<PreparedStatement>() {
+			@Override
+			public PreparedStatement call() throws Exception {
+				return c.prepareStatement(sql);
+			}
 		});
 	}
 
-	protected int executeUpdate(PreparedStatement ps) throws SQLException {
-		return retryUntilSucceeded(() -> {
-			return ps.executeUpdate();
+	protected int executeUpdate(final PreparedStatement ps) throws SQLException {
+		return retryUntilSucceeded(new Callable<Integer>() {
+			@Override
+			public Integer call() throws Exception {
+				return ps.executeUpdate();
+			}
 		});
 	}
 
-	protected ResultSet executeQuery(PreparedStatement ps) throws SQLException {
-		return retryUntilSucceeded(() -> {
-			return ps.executeQuery();
+	protected ResultSet executeQuery(final PreparedStatement ps) throws SQLException {
+		return retryUntilSucceeded(new Callable<ResultSet>() {
+			@Override
+			public ResultSet call() throws Exception {
+				return ps.executeQuery();
+			}
 		});
 	}
 
-	public <T> T retryUntilSucceeded(Callable<T> callable) throws SQLException {
+	public <T> T retryUntilSucceeded(final Callable<T> callable) throws SQLException {
 		final long operationStartTime = System.currentTimeMillis();
 		SQLException lastEx;
 		while (true) {

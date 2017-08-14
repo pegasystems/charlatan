@@ -136,14 +136,16 @@ public class NodeServiceImpl implements NodeService {
 	}
 
 	@Override
-	public void create(final String path, byte[] data, List<ACL> acl, CreateMode createMode, AsyncCallback.StringCallback cb, Object ctx) {
-		executor.submit(() ->
-		{
-			try {
-				String node = create(path, data, acl, createMode);
-				cb.processResult(KeeperException.Code.OK.intValue(), path, ctx, node);
-			} catch (KeeperException e) {
-				cb.processResult(e.code().intValue(), path, ctx, null);
+	public void create(final String path, final byte[] data, final List<ACL> acl, final CreateMode createMode, final AsyncCallback.StringCallback cb, final Object ctx) {
+		executor.submit(new Runnable() {
+			@Override
+			public void run() {
+				try {
+					String node = create(path, data, acl, createMode);
+					cb.processResult(KeeperException.Code.OK.intValue(), path, ctx, node);
+				} catch (KeeperException e) {
+					cb.processResult(e.code().intValue(), path, ctx, null);
+				}
 			}
 		});
 	}
@@ -220,15 +222,17 @@ public class NodeServiceImpl implements NodeService {
 
 
 	@Override
-	public void getChildren(String path, boolean watch, AsyncCallback.ChildrenCallback cb, Object ctx) {
-		executor.submit(() ->
-		{
-			try {
-				List<String> children = getChildren(path, watch);
+	public void getChildren(final String path, final boolean watch, final AsyncCallback.ChildrenCallback cb, final Object ctx) {
+		executor.submit(new Runnable() {
+			@Override
+			public void run() {
+				try {
+					List<String> children = getChildren(path, watch);
 
-				cb.processResult(KeeperException.Code.OK.intValue(), path, ctx, children);
-			} catch (KeeperException e) {
-				cb.processResult(e.code().intValue(), path, ctx, null);
+					cb.processResult(KeeperException.Code.OK.intValue(), path, ctx, children);
+				} catch (KeeperException e) {
+					cb.processResult(e.code().intValue(), path, ctx, null);
+				}
 			}
 		});
 	}
@@ -249,24 +253,25 @@ public class NodeServiceImpl implements NodeService {
 	}
 
 	@Override
-	public void getData(String path, boolean watch, AsyncCallback.DataCallback cb, Object ctx) {
-		executor.submit(() ->
-		{
-			try {
-				Node node = getNode(path);
+	public void getData(final String path, final boolean watch, final AsyncCallback.DataCallback cb, final Object ctx) {
+		executor.submit(new Runnable() {
+			@Override
+			public void run() {
+				try {
+					Node node = getNode(path);
 
-				if (watch) {
-					watchManager.registerDataWatch(path);
+					if (watch) {
+						watchManager.registerDataWatch(path);
+					}
+
+					Stat stat = new Stat(node.getStat());
+
+					cb.processResult(KeeperException.Code.OK.intValue(), path, ctx, node.getData(), stat);
+				} catch (KeeperException e) {
+					cb.processResult(e.code().intValue(), path, ctx, null, null);
 				}
-
-				Stat stat = new Stat(node.getStat());
-
-				cb.processResult(KeeperException.Code.OK.intValue(), path, ctx, node.getData(), stat);
-			} catch (KeeperException e) {
-				cb.processResult(e.code().intValue(), path, ctx, null, null);
 			}
 		});
-
 	}
 
 	private Node getNode(String path) throws KeeperException.NoNodeException {
