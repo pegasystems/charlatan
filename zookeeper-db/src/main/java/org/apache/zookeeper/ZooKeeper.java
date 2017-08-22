@@ -37,6 +37,13 @@ public class ZooKeeper implements NodeService {
 	private NodeService nodeService;
 
 	public ZooKeeper(String connectString, int sessionTimeout, Watcher watcher) throws IOException {
+
+		if(connectString != null){
+			String[] address = connectString.split(":");
+			System.setProperty("ZOOKEEPER_HOST",address[0]);
+			System.setProperty("ZOOKEEPER_PORT",address[1]);
+		}
+
 		this.nodeService = new NodeServiceImpl(
 				new ZKDatabase(ZookeeperClassLoader.getNodeDao()),
 				ZookeeperClassLoader.getRemoteNodeUpdates(),
@@ -122,7 +129,7 @@ public class ZooKeeper implements NodeService {
 
 	@Override
 	public void removeSessionNodes(long session) {
-
+		nodeService.removeSessionNodes(session);
 	}
 
 

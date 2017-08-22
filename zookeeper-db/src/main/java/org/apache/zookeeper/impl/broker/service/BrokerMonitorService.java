@@ -40,19 +40,25 @@ public class BrokerMonitorService {
 		setState(State.CREATED);
 	}
 
-	private void invalidateStaleBrokers() {
+	private void invalidateStaleBrokers(boolean includeThisBroker) {
 		try {
 			List<BrokerInfo> staleBrokers = brokerDao.getBrokersInfo(System.currentTimeMillis() - sessionTimeout * 3);
 
 			for (BrokerInfo brokerInfo : staleBrokers) {
-				logger.info(String.format("Found stale broker %d session %d, invalidating the session", brokerInfo.getBrokerId(), brokerInfo.getSession()));
 
-				nodeService.removeSessionNodes(brokerInfo.getSession());
+				if(!includeThisBroker && this.brokerId == brokerInfo.getBrokerId()){
+					logger.warn("This broker is in list of stale brokers!");
+				} else {
 
-				// Delete broker session info only after session ephemeral nodes are removed.
-				brokerDao.delete(brokerInfo);
+					logger.info(String.format("Found stale broker %d session %d, invalidating the session", brokerInfo.getBrokerId(), brokerInfo.getSession()));
+
+					nodeService.removeSessionNodes(brokerInfo.getSession());
+
+					// Delete broker session info only after session ephemeral nodes are removed.
+					brokerDao.delete(brokerInfo);
+				}
 			}
-		} catch (Exception e) {
+		} catch (Throwable e) {
 			logger.warn("Failed to invalidate stale brokers", e);
 		}
 	}
@@ -62,7 +68,7 @@ public class BrokerMonitorService {
 		this.brokerId = brokerId;
 		this.session = session;
 		// Stale brokers should be invalidated during startup. This is important in case one of the stale brokers is current broker with previous session.
-		invalidateStaleBrokers();
+		invalidateStaleBrokers(true);
 		brokerInfoUpdater.scheduleAtFixedRate(new Runnable() {
 			@Override
 			public void run() {
@@ -72,7 +78,7 @@ public class BrokerMonitorService {
 		brokersChecker.scheduleAtFixedRate(new Runnable() {
 			@Override
 			public void run() {
-				invalidateStaleBrokers();
+				invalidateStaleBrokers(false);
 			}
 		}, sessionTimeout, sessionTimeout, TimeUnit.MILLISECONDS);
 		setState(State.STARTED);
@@ -82,7 +88,7 @@ public class BrokerMonitorService {
 		try {
 			lastSeen = System.currentTimeMillis();
 			brokerDao.update(new BrokerInfo(brokerId, session, lastSeen));
-		} catch (Exception e) {
+		} catch (Throwable e) {
 			logger.warn("Failed to update broker info");
 		}
 	}

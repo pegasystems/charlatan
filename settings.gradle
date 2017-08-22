@@ -1,3 +1,4 @@
 rootProject.name = projectName
 include 'zookeeper-db'
 include 'zookeeper-db-sqlite'
+include 'zookeeper-db-remote'

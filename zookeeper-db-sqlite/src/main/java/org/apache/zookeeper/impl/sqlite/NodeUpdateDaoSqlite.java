@@ -22,14 +22,14 @@ public class NodeUpdateDaoSqlite extends DatabaseConnection implements NodeUpdat
 	private final static Logger logger = LoggerFactory.getLogger(NodeUpdateDaoSqlite.class.getName());
 
 	@Override
-	public void insertUpdate(int ownerBroker, NodeUpdate update) {
+	public void insertUpdate(NodeUpdate update) {
 		String sql = "INSERT INTO node_updates(type,path,broker,timestamp) VALUES (?,?,?,?)";
 		try (Connection c = getConnection()) {
 			try (PreparedStatement ps = prepareStatement(c,sql)) {
 
 				ps.setString(1, update.getEventType().name());
 				ps.setString(2, update.getPath());
-				ps.setInt(3, ownerBroker);
+				ps.setInt(3, update.getBrokerId());
 				ps.setLong(4, System.currentTimeMillis());
 
 				executeUpdate(ps);
@@ -44,7 +44,7 @@ public class NodeUpdateDaoSqlite extends DatabaseConnection implements NodeUpdat
 	public List<NodeUpdate> getNodeUpdates(int ownerBroker, int fromId) {
 		List<NodeUpdate> updates = new ArrayList<>();
 
-		String sql = "SELECT id, type, path, timestamp FROM node_updates WHERE id > ? AND broker != ?";
+		String sql = "SELECT id, type, path, timestamp, broker FROM node_updates WHERE id > ? AND broker != ?";
 
 		try (Connection c = getConnection()) {
 			try (PreparedStatement ps = prepareStatement(c,sql)) {
@@ -58,8 +58,9 @@ public class NodeUpdateDaoSqlite extends DatabaseConnection implements NodeUpdat
 					Watcher.Event.EventType type = Watcher.Event.EventType.valueOf(rs.getString("type"));
 					String path = rs.getString("path");
 					long timestamp = rs.getLong("timestamp");
+					int broker = rs.getInt("broker");
 
-					updates.add(new NodeUpdate(id, type, path, timestamp));
+					updates.add(new NodeUpdate(id, type, path, timestamp,broker));
 				}
 			}
 		} catch (SQLException e) {
@@ -71,14 +72,14 @@ public class NodeUpdateDaoSqlite extends DatabaseConnection implements NodeUpdat
 	}
 
 	@Override
-	public void clearProcessedUpdates(int ownerBroker, int id) {
+	public void clearProcessedUpdates(int ownerBroker, int toId) {
 		String sql = "DELETE FROM node_updates WHERE  broker=? and id<=?";
 
 		try (Connection c = getConnection()) {
 			try (PreparedStatement ps = c.prepareStatement(sql)) {
 
 				ps.setInt(1, ownerBroker);
-				ps.setInt(2, id);
+				ps.setInt(2, toId);
 
 				ps.executeUpdate();
 			}

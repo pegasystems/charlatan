@@ -32,6 +32,8 @@ public class Node {
 
 	private Stat stat;
 
+	public Node(){}
+
 	public Node(String path) {
 		this(path, null, null);
 	}

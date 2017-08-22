@@ -121,7 +121,16 @@ public class NodeDaoSqlite extends DatabaseConnection implements NodeDao {
 						List<String> children = new ArrayList<>();
 						while (rs.next()) {
 							String fullPath = rs.getString("name");
-							String nodeName = fullPath.substring(node.getPath().length() + 1);
+
+							int startIndex;
+							if(path.equals("/")){
+								startIndex = 1;
+							}
+							else {
+								startIndex = node.getPath().length() + 1;
+							}
+
+							String nodeName = fullPath.substring(startIndex);
 							children.add(nodeName);
 						}
 						node.setChildren(children);

@@ -9,7 +9,7 @@ import java.util.List;
  */
 public interface NodeUpdateDao {
 
-	void insertUpdate(int ownerBroker, NodeUpdate update);
+	void insertUpdate(NodeUpdate update);
 
 	List<NodeUpdate> getNodeUpdates(int ownerBroker, int fromId);
 

@@ -14,7 +14,7 @@ import java.util.List;
 /**
  * Created by natalia on 7/24/17.
  */
-public class BrokerDaoImpl extends DatabaseConnection implements BrokerDao {
+public class BrokerDaoSqlite extends DatabaseConnection implements BrokerDao {
 
 
 	@Override

@@ -69,7 +69,7 @@ public class RemoteNodeUpdateManagerImpl extends RemoteNodeUpdateManager {
 				WatchedEvent event = new WatchedEvent(update.getEventType(), Watcher.Event.KeeperState.SyncConnected, update.getPath());
 				processRemoteWatchedEvent(event);
 			}
-		} catch (Exception e) {
+		} catch (Throwable e) {
 			logger.warn("pull updates failed [" + e.getMessage() + "]");
 		}
 	}
@@ -78,7 +78,7 @@ public class RemoteNodeUpdateManagerImpl extends RemoteNodeUpdateManager {
 		try {
 			nodeUpdateDao.clearProcessedUpdates(broker, lastPulledId);
 			nodeUpdateDao.clearOldUpdates(System.currentTimeMillis() - 10 * 60 * 1000);
-		} catch (Exception e) {
+		} catch (Throwable e) {
 			logger.warn("clear updates failed [" + e.getMessage() + "]");
 		}
 	}
@@ -90,9 +90,9 @@ public class RemoteNodeUpdateManagerImpl extends RemoteNodeUpdateManager {
 	@Override
 	public void processLocalWatchedEvent(WatchedEvent event) {
 		try {
-			NodeUpdate update = new NodeUpdate(event.getType(), event.getPath(), System.currentTimeMillis());
-			nodeUpdateDao.insertUpdate(broker, update);
-		} catch (Exception e) {
+			NodeUpdate update = new NodeUpdate(event.getType(), event.getPath(), System.currentTimeMillis(), broker);
+			nodeUpdateDao.insertUpdate(update);
+		} catch (Throwable e) {
 			logger.warn("clear updates failed [" + e.getMessage() + "]");
 		}
 	}
