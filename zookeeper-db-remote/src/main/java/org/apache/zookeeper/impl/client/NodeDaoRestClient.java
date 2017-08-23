@@ -19,7 +19,7 @@ public class NodeDaoRestClient extends NettyClient implements NodeDao {
 		try {
 			return sendMessage(HttpMethod.POST, "/nodes?session=" + session, node, Boolean.class);
 		} catch (IOException e) {
-			logger.error("Failed to create requested node",e);
+			logger.error("Failed to create requested node", e);
 			throw new DataAccessException("Failed to create requested node", e);
 		}
 	}
@@ -28,7 +28,7 @@ public class NodeDaoRestClient extends NettyClient implements NodeDao {
 	public boolean delete(Node node) {
 		try {
 			return sendMessage(HttpMethod.DELETE, "/nodes/" + encodePath(node.getPath()) + "?version=" + node.getStat().getVersion(), Boolean.class);
-		} catch (IOException|RecordNotFoundException e) {
+		} catch (IOException | RecordNotFoundException e) {
 			throw new DataAccessException("Failed to delete requested node", e);
 		}
 	}
@@ -46,8 +46,8 @@ public class NodeDaoRestClient extends NettyClient implements NodeDao {
 	public void update(String path, byte[] data, int newVersion, long modificationTime) {
 		try {
 			// TDOD: check if it is possible to create body instead of parameters(is PATCH supported?)
-			sendMessage(HttpMethod.PUT, "/nodes/" + encodePath(path) + "?version=" + newVersion + "&mtime=" + modificationTime, data, null );
-		} catch (IOException|RecordNotFoundException e) {
+			sendMessage(HttpMethod.PUT, "/nodes/" + encodePath(path) + "?version=" + newVersion + "&mtime=" + modificationTime, data, null);
+		} catch (IOException | RecordNotFoundException e) {
 			throw new DataAccessException("Failed to update requested node", e);
 		}
 	}
@@ -65,7 +65,7 @@ public class NodeDaoRestClient extends NettyClient implements NodeDao {
 	public void updateCVersion(String path, int cversion) {
 		try {
 			sendMessage(HttpMethod.PUT, "/nodes/" + encodePath(path) + "?cversion=" + cversion);
-		} catch (IOException|RecordNotFoundException e) {
+		} catch (IOException | RecordNotFoundException e) {
 			throw new DataAccessException("Failed to update node cversion", e);
 		}
 	}
@@ -74,7 +74,7 @@ public class NodeDaoRestClient extends NettyClient implements NodeDao {
 	public List<String> getEphemeralPaths(long session) {
 		try {
 			return Arrays.asList(sendMessage(HttpMethod.GET, "/nodes?session=" + session + "&mode=ephimeral", String[].class));
-		} catch (IOException|RecordNotFoundException e) {
+		} catch (IOException | RecordNotFoundException e) {
 			throw new DataAccessException("Failed to get ephemeral nodes of the session", e);
 		}
 	}

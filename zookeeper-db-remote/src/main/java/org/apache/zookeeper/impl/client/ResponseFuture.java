@@ -1,11 +1,13 @@
 package org.apache.zookeeper.impl.client;
+
 import java.util.concurrent.*;
 
 /**
  * Simple Future implementation
+ *
  * @param <T>
  */
-public class ResultFuture<T> implements Future<T> {
+public class ResponseFuture<T> implements Future<T> {
 	private final CountDownLatch latch = new CountDownLatch(1);
 	private T response;
 	private Throwable failure;
@@ -28,7 +30,7 @@ public class ResultFuture<T> implements Future<T> {
 	@Override
 	public T get() throws InterruptedException, ExecutionException {
 		latch.await();
-		if(failure!=null)
+		if (failure != null)
 			throw new ExecutionException(failure);
 		return response;
 	}
@@ -36,7 +38,7 @@ public class ResultFuture<T> implements Future<T> {
 	@Override
 	public T get(long timeout, TimeUnit unit) throws InterruptedException, TimeoutException, ExecutionException {
 		if (latch.await(timeout, unit)) {
-			if(failure!=null)
+			if (failure != null)
 				throw new ExecutionException(failure);
 			return response;
 		} else {
@@ -50,7 +52,7 @@ public class ResultFuture<T> implements Future<T> {
 	}
 
 
-	void setFailure(Throwable e){
+	void setFailure(Throwable e) {
 		failure = e;
 		latch.countDown();
 	}

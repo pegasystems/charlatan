@@ -13,7 +13,6 @@ import org.jboss.netty.channel.socket.nio.NioClientSocketChannelFactory;
 import org.jboss.netty.handler.codec.http.*;
 import org.jboss.netty.handler.codec.http.HttpMethod;
 
-import javax.lang.model.type.ErrorType;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -105,11 +104,11 @@ public class ZookeeperDaoRemoteConnection {
 		request.headers().add(HttpHeaders.Names.CONTENT_LENGTH, contentLength);
 		HttpHeaders.setKeepAlive(request, true);
 
-		ResultFuture<HttpResponse> resultFuture = messageHandler.sendMessage(request);
+		ResponseFuture<HttpResponse> responseFuture = messageHandler.sendMessage(request);
 
 		try {
 			// wait for response
-			HttpResponse response = resultFuture.get(readTimeoutMs, TimeUnit.MILLISECONDS);
+			HttpResponse response = responseFuture.get(readTimeoutMs, TimeUnit.MILLISECONDS);
 			int statusCode = response.getStatus().getCode();
 
 			if (statusCode == 200) {
@@ -141,6 +140,7 @@ public class ZookeeperDaoRemoteConnection {
 
 	/**
 	 * Return MessageHandler of the open channel.
+	 *
 	 * @return
 	 */
 	private MessageHandler getMessageHandler() {

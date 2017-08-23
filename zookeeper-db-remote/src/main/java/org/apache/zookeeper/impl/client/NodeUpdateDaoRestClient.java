@@ -16,7 +16,7 @@ public class NodeUpdateDaoRestClient extends NettyClient implements NodeUpdateDa
 	public void insertUpdate(NodeUpdate update) {
 		try {
 			sendMessage(HttpMethod.POST, "/updates", update, null);
-		} catch (IOException|RecordNotFoundException e) {
+		} catch (IOException | RecordNotFoundException e) {
 			throw new DataAccessException("Failed to create node update", e);
 		}
 	}
@@ -25,7 +25,7 @@ public class NodeUpdateDaoRestClient extends NettyClient implements NodeUpdateDa
 	public List<NodeUpdate> getNodeUpdates(int ownerBroker, int fromId) {
 		try {
 			return Arrays.asList(sendMessage(HttpMethod.GET, "/updates?broker=" + ownerBroker + "&exclude_own=true&start_id=" + fromId, NodeUpdate[].class));
-		} catch (IOException|RecordNotFoundException e) {
+		} catch (IOException | RecordNotFoundException e) {
 			throw new DataAccessException("Failed to get node updates", e);
 		}
 	}
@@ -34,7 +34,7 @@ public class NodeUpdateDaoRestClient extends NettyClient implements NodeUpdateDa
 	public void clearProcessedUpdates(int ownerBroker, int toId) {
 		try {
 			sendMessage(HttpMethod.DELETE, "/updates?broker=" + ownerBroker + "&end_id=" + toId);
-		} catch (IOException|RecordNotFoundException e) {
+		} catch (IOException | RecordNotFoundException e) {
 			throw new DataAccessException("Failed to clear updates", e);
 		}
 	}
@@ -43,7 +43,7 @@ public class NodeUpdateDaoRestClient extends NettyClient implements NodeUpdateDa
 	public void clearOldUpdates(long toMs) {
 		try {
 			sendMessage(HttpMethod.DELETE, "/updates?to_ms=" + toMs);
-		} catch (IOException|RecordNotFoundException e) {
+		} catch (IOException | RecordNotFoundException e) {
 			throw new DataAccessException("Failed to clear old updates", e);
 		}
 	}
@@ -52,7 +52,7 @@ public class NodeUpdateDaoRestClient extends NettyClient implements NodeUpdateDa
 	public int getLastUpdateId() {
 		try {
 			return sendMessage(HttpMethod.GET, "/updates/last/id", Integer.class);
-		} catch (IOException|RecordNotFoundException e) {
+		} catch (IOException | RecordNotFoundException e) {
 			throw new DataAccessException("Failed to retrieve last update id", e);
 		}
 	}

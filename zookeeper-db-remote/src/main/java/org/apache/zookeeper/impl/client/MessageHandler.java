@@ -1,9 +1,10 @@
 package org.apache.zookeeper.impl.client;
 
 import org.jboss.netty.channel.*;
-import org.jboss.netty.handler.codec.http.HttpChunk;
 import org.jboss.netty.handler.codec.http.HttpRequest;
 import org.jboss.netty.handler.codec.http.HttpResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.BufferOverflowException;
@@ -16,14 +17,16 @@ import java.util.concurrent.LinkedBlockingQueue;
  */
 public class MessageHandler extends SimpleChannelUpstreamHandler {
 
+	private static Logger logger = LoggerFactory.getLogger(MessageHandler.class.getName());
 	private ChannelHandlerContext ctx;
-	private BlockingQueue<ResultFuture<HttpResponse>> messageList = new LinkedBlockingQueue<>();
+	private BlockingQueue<ResponseFuture<HttpResponse>> responseFutures;
 
 	@Override
 	public void channelConnected(
 			ChannelHandlerContext ctx, ChannelStateEvent e) throws Exception {
 		super.channelConnected(ctx, e);
 		this.ctx = ctx;
+		this.responseFutures = new LinkedBlockingQueue<>();
 	}
 
 	@Override
@@ -31,57 +34,59 @@ public class MessageHandler extends SimpleChannelUpstreamHandler {
 			ChannelHandlerContext ctx, ChannelStateEvent e) throws Exception {
 
 		super.channelDisconnected(ctx, e);
+		// All ongoing requests fail
 		synchronized (this) {
-			ResultFuture<HttpResponse> prom;
+			ResponseFuture<HttpResponse> prom;
 			Exception err = new IOException("Connection lost");
-			while ((prom = messageList.poll()) != null) {
+			while ((prom = responseFutures.poll()) != null) {
 				prom.setFailure(err);
 			}
-			messageList = null;
+			responseFutures = null;
 		}
 	}
 
-	public ResultFuture<HttpResponse> sendMessage(HttpRequest httpRequest) {
+	public ResponseFuture<HttpResponse> sendMessage(HttpRequest httpRequest) {
 		if (ctx == null)
 			throw new IllegalStateException();
 
-		ResultFuture<HttpResponse> resultFuture = new ResultFuture<>();
+		ResponseFuture<HttpResponse> responseFuture = new ResponseFuture<>();
 
 		synchronized (this) {
-			if (messageList == null) {
+			if (responseFutures == null) {
 				// Connection closed
-				resultFuture.setFailure(new IllegalStateException());
-			} else if (messageList.offer(resultFuture)) {
+				responseFuture.setFailure(new IllegalStateException());
+			} else if (responseFutures.offer(responseFuture)) {
 				// Connection open and message accepted
-				ChannelFuture channelFuture = ctx.getChannel().write(httpRequest);
-				channelFuture.awaitUninterruptibly();
+				ChannelFuture channelFuture = ctx.getChannel()
+						.write(httpRequest)
+						.awaitUninterruptibly();
+				// Failed to send the message
 				if (!channelFuture.isSuccess()) {
-					resultFuture.setFailure(channelFuture.getCause());
+					responseFuture.setFailure(channelFuture.getCause());
 				}
-				System.out.println("Request: " + httpRequest.getUri() );
+				logger.debug("Request: " + httpRequest.getUri());
 			} else {
 				// Connection open and message rejected
-				resultFuture.setFailure(new BufferOverflowException());
+				responseFuture.setFailure(new BufferOverflowException());
 			}
-			return resultFuture;
+			return responseFuture;
 		}
 	}
 
 	@Override
 	public void messageReceived(
 			ChannelHandlerContext ctx, MessageEvent e) throws Exception {
-		if (messageList != null) {
-			ResultFuture<HttpResponse> rf = messageList.poll();
+		if (responseFutures != null) {
+			ResponseFuture<HttpResponse> rf = responseFutures.poll();
 			if (rf != null) {
-
 				if (e.getMessage() instanceof HttpResponse) {
+					if (logger.isDebugEnabled()) {
+						logger.debug("Response: \r\n" + ((HttpResponse) e.getMessage()).getContent().toString(StandardCharsets.UTF_8));
+					}
 					rf.setResponse((HttpResponse) e.getMessage());
-					System.out.println("Response " + ( ((HttpResponse) e.getMessage()).isChunked() ? "chunked" : "") + "\r\n" + ((HttpResponse)e.getMessage()).getContent().toString(StandardCharsets.UTF_8));
 				}
-			} else if (e.getMessage() instanceof HttpChunk) {
-				HttpChunk chunk = (HttpChunk) e.getMessage();
-				System.out.println("Chunk\r\n" +chunk.getContent().toString(StandardCharsets.UTF_8));
-
+			} else {
+				logger.error("Unsupported message " + e.getMessage().getClass());
 			}
 		}
 	}
@@ -90,10 +95,12 @@ public class MessageHandler extends SimpleChannelUpstreamHandler {
 	@Override
 	public void exceptionCaught(ChannelHandlerContext ctx, ExceptionEvent e) throws Exception {
 		super.exceptionCaught(ctx, e);
-		if (messageList != null) {
-			ResultFuture<HttpResponse> rf = messageList.poll();
-			if (rf != null)
+		if (responseFutures != null) {
+			ResponseFuture<HttpResponse> rf = responseFutures.poll();
+			if (rf != null) {
+				logger.error("Failed to process the request", e.getCause());
 				rf.setFailure(e.getCause());
+			}
 		}
 	}
 }
