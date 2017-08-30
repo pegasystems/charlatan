@@ -9,18 +9,18 @@ import java.util.concurrent.CopyOnWriteArrayList;
  */
 public abstract class RemoteNodeUpdateManager {
 
-	private CopyOnWriteArrayList< NodeUpdateListener> nodeUpdateListeners;
+	private CopyOnWriteArrayList<NodeUpdateListener> nodeUpdateListeners;
 
-	public RemoteNodeUpdateManager(){
+	public RemoteNodeUpdateManager() {
 		nodeUpdateListeners = new CopyOnWriteArrayList<>();
 	}
 
-	public void addNodeUpdateListener(NodeUpdateListener l){
+	public void addNodeUpdateListener(NodeUpdateListener l) {
 		nodeUpdateListeners.add(l);
 	}
 
-	public void removeNodeUpdateListener(NodeUpdateListener l){
-
+	public void removeNodeUpdateListener(NodeUpdateListener l) {
+		nodeUpdateListeners.remove(l);
 	}
 
 	/**

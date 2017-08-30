@@ -35,7 +35,7 @@ public class Node {
 	public Node(){}
 
 	public Node(String path) {
-		this(path, null, null);
+		this(path, null, CreateMode.PERSISTENT);
 	}
 
 	public Node(String path, byte[] data, CreateMode mode) {

@@ -201,5 +201,5 @@ public interface NodeService {
 	 */
 	long getSessionId();
 
-	void removeSessionNodes(long session);
+	void removeEphemeralSessionNodes(long session);
 }

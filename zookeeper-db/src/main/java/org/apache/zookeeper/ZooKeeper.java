@@ -22,7 +22,6 @@ import org.apache.zookeeper.data.ACL;
 import org.apache.zookeeper.data.Stat;
 import org.apache.zookeeper.impl.broker.service.BrokerMonitorService;
 import org.apache.zookeeper.impl.common.ZookeeperClassLoader;
-import org.apache.zookeeper.impl.node.bean.Node;
 import org.apache.zookeeper.impl.node.service.NodeService;
 import org.apache.zookeeper.impl.node.service.NodeServiceImpl;
 import org.apache.zookeeper.impl.node.service.ZKDatabase;
@@ -46,7 +45,7 @@ public class ZooKeeper implements NodeService {
 
 		this.nodeService = new NodeServiceImpl(
 				new ZKDatabase(ZookeeperClassLoader.getNodeDao()),
-				ZookeeperClassLoader.getRemoteNodeUpdates(),
+				ZookeeperClassLoader.getRemoteNodeUpdateManager(),
 				new ClientWatchManagerImpl(watcher, false),
 				new BrokerMonitorService(ZookeeperClassLoader.getBrokerDaoImpl(), this, sessionTimeout));
 	}
@@ -91,11 +90,6 @@ public class ZooKeeper implements NodeService {
 		nodeService.getData(path, watch, cb, ctx);
 	}
 
-	private Node getNode(String path, boolean watch) throws KeeperException.NoNodeException {
-		return getNode(path, watch);
-	}
-
-
 	@Override
 	public Stat setData(String path, byte[] data, int version) throws KeeperException {
 		return nodeService.setData(path, data, version);
@@ -116,7 +110,6 @@ public class ZooKeeper implements NodeService {
 		nodeService.setACL(path, acl, version, cb, ctx);
 	}
 
-
 	@Override
 	public void getChildren(String path, boolean watch, AsyncCallback.ChildrenCallback cb, Object ctx) {
 		nodeService.getChildren(path, watch, cb, ctx);
@@ -128,8 +121,8 @@ public class ZooKeeper implements NodeService {
 	}
 
 	@Override
-	public void removeSessionNodes(long session) {
-		nodeService.removeSessionNodes(session);
+	public void removeEphemeralSessionNodes(long session) {
+		nodeService.removeEphemeralSessionNodes(session);
 	}
 
 

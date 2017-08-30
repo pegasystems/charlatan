@@ -114,7 +114,7 @@ public class ZookeeperClassLoader {
 		return nodeDaoImpl;
 	}
 
-	public static RemoteNodeUpdateManager getRemoteNodeUpdates() {
+	public static RemoteNodeUpdateManager getRemoteNodeUpdateManager() {
 		return remoteNodeUpdates;
 	}
 

@@ -52,7 +52,7 @@ public class BrokerMonitorService {
 
 					logger.info(String.format("Found stale broker %d session %d, invalidating the session", brokerInfo.getBrokerId(), brokerInfo.getSession()));
 
-					nodeService.removeSessionNodes(brokerInfo.getSession());
+					nodeService.removeEphemeralSessionNodes(brokerInfo.getSession());
 
 					// Delete broker session info only after session ephemeral nodes are removed.
 					brokerDao.delete(brokerInfo);

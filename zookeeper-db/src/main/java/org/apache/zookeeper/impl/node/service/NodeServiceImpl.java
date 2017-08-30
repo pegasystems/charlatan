@@ -37,7 +37,7 @@ public class NodeServiceImpl implements NodeService {
 	 */
 	private long session;
 
-	public NodeServiceImpl(ZKDatabase zkDatabase, RemoteNodeUpdateManager remoteNodeUpdateManager, ClientWatchManager clientWatchManager, BrokerMonitorService brokerMonitroService) throws IOException {
+	public NodeServiceImpl(ZKDatabase zkDatabase, RemoteNodeUpdateManager remoteNodeUpdateManager, ClientWatchManager clientWatchManager, BrokerMonitorService brokerMonitorService) throws IOException {
 
 		this.zkDatabase = zkDatabase;
 
@@ -47,7 +47,7 @@ public class NodeServiceImpl implements NodeService {
 		this.remoteNodeUpdateManager = remoteNodeUpdateManager;
 		this.remoteNodeUpdateManager.addNodeUpdateListener(watchesNotifier);
 
-		this.brokerMonitorService = brokerMonitroService;
+		this.brokerMonitorService = brokerMonitorService;
 
 		// Generate session
 		this.session = new Random().nextLong();
@@ -62,7 +62,7 @@ public class NodeServiceImpl implements NodeService {
 	@Override
 	public void close() {
 
-		removeSessionNodes(session);
+		removeEphemeralSessionNodes(session);
 
 		if (brokerMonitorService != null) {
 			try {
@@ -121,7 +121,7 @@ public class NodeServiceImpl implements NodeService {
 		}
 	}
 
-	public void removeSessionNodes(long session) {
+	public void removeEphemeralSessionNodes(long session) {
 		List<String> ephemeralPaths = zkDatabase.getEphemeralPaths(session);
 
 		for (String ephemeralPath : ephemeralPaths) {
