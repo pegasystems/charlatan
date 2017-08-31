@@ -41,4 +41,6 @@ public abstract class RemoteNodeUpdateManager {
 	 * @param event
 	 */
 	public abstract void processLocalWatchedEvent(WatchedEvent event);
+
+	public abstract void start();
 }

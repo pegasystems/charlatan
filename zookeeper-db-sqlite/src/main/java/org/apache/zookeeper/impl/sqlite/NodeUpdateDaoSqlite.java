@@ -1,8 +1,8 @@
 package org.apache.zookeeper.impl.sqlite;
 
 import org.apache.zookeeper.Watcher;
-import org.apache.zookeeper.impl.node.dao.DataAccessException;
 import org.apache.zookeeper.impl.node.bean.NodeUpdate;
+import org.apache.zookeeper.impl.node.dao.DataAccessException;
 import org.apache.zookeeper.impl.watches.dao.NodeUpdateDao;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,7 +25,7 @@ public class NodeUpdateDaoSqlite extends DatabaseConnection implements NodeUpdat
 	public void insertUpdate(NodeUpdate update) {
 		String sql = "INSERT INTO node_updates(type,path,broker,timestamp) VALUES (?,?,?,?)";
 		try (Connection c = getConnection()) {
-			try (PreparedStatement ps = prepareStatement(c,sql)) {
+			try (PreparedStatement ps = prepareStatement(c, sql)) {
 
 				ps.setString(1, update.getEventType().name());
 				ps.setString(2, update.getPath());
@@ -41,26 +41,29 @@ public class NodeUpdateDaoSqlite extends DatabaseConnection implements NodeUpdat
 
 
 	@Override
-	public List<NodeUpdate> getNodeUpdates(int ownerBroker, int fromId) {
+	public List<NodeUpdate> getNodeUpdates(int thisBroker, long fromTimestamp) {
 		List<NodeUpdate> updates = new ArrayList<>();
 
-		String sql = "SELECT id, type, path, timestamp, broker FROM node_updates WHERE id > ? AND broker != ?";
+		String sql = "SELECT type, path, timestamp, broker FROM node_updates " +
+				"WHERE " +
+				"timestamp >= ?  " +
+				"AND broker != ?";
 
 		try (Connection c = getConnection()) {
-			try (PreparedStatement ps = prepareStatement(c,sql)) {
+			try (PreparedStatement ps = prepareStatement(c, sql)) {
 
-				ps.setInt(1, fromId);
-				ps.setInt(2, ownerBroker);
+				int i = 1;
+				ps.setLong(i++, fromTimestamp);
+				ps.setInt(i++, thisBroker);
 
 				ResultSet rs = executeQuery(ps);
 				while (rs.next()) {
-					int id = rs.getInt("id");
 					Watcher.Event.EventType type = Watcher.Event.EventType.valueOf(rs.getString("type"));
 					String path = rs.getString("path");
 					long timestamp = rs.getLong("timestamp");
 					int broker = rs.getInt("broker");
 
-					updates.add(new NodeUpdate(id, type, path, timestamp,broker));
+					updates.add(new NodeUpdate(type, path, timestamp, broker));
 				}
 			}
 		} catch (SQLException e) {
@@ -68,25 +71,25 @@ public class NodeUpdateDaoSqlite extends DatabaseConnection implements NodeUpdat
 			throw new DataAccessException(e);
 		}
 		return updates;
-
 	}
 
-	@Override
-	public void clearProcessedUpdates(int ownerBroker, int toId) {
-		String sql = "DELETE FROM node_updates WHERE  broker=? and id<=?";
 
-		try (Connection c = getConnection()) {
-			try (PreparedStatement ps = c.prepareStatement(sql)) {
-
-				ps.setInt(1, ownerBroker);
-				ps.setInt(2, toId);
-
-				ps.executeUpdate();
-			}
-		} catch (SQLException e) {
-			throw new DataAccessException(e);
-		}
-	}
+//	@Override
+//	public void clearProcessedUpdates(int ownerBroker, int toId) {
+//		String sql = "DELETE FROM node_updates WHERE  broker=? and id<=?";
+//
+//		try (Connection c = getConnection()) {
+//			try (PreparedStatement ps = c.prepareStatement(sql)) {
+//
+//				ps.setInt(1, ownerBroker);
+//				ps.setInt(2, toId);
+//
+//				ps.executeUpdate();
+//			}
+//		} catch (SQLException e) {
+//			throw new DataAccessException(e);
+//		}
+//	}
 
 	@Override
 	public void clearOldUpdates(long toMs) {
@@ -97,24 +100,6 @@ public class NodeUpdateDaoSqlite extends DatabaseConnection implements NodeUpdat
 				ps.setLong(1, toMs);
 
 				ps.executeUpdate();
-			}
-		} catch (SQLException e) {
-			throw new DataAccessException(e);
-		}
-	}
-
-	@Override
-	public int getLastUpdateId() {
-		String sql = "SELECT ifnull( MAX(id),-1) as id FROM node_updates";
-		try (Connection c = getConnection()) {
-			try (PreparedStatement ps = prepareStatement(c,sql)) {
-
-				ResultSet rs = executeQuery(ps);
-				if (rs.next()) {
-					return rs.getInt("id");
-				}
-
-				return -1;
 			}
 		} catch (SQLException e) {
 			throw new DataAccessException(e);

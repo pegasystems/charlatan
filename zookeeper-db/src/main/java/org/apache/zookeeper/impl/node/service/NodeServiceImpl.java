@@ -46,6 +46,8 @@ public class NodeServiceImpl implements NodeService {
 
 		this.remoteNodeUpdateManager = remoteNodeUpdateManager;
 		this.remoteNodeUpdateManager.addNodeUpdateListener(watchesNotifier);
+		this.remoteNodeUpdateManager.start();
+
 
 		this.brokerMonitorService = brokerMonitorService;
 
@@ -56,6 +58,13 @@ public class NodeServiceImpl implements NodeService {
 		executor.submit(watchesNotifier);
 
 		processEvent(new WatchedEvent(Watcher.Event.EventType.None, Watcher.Event.KeeperState.SyncConnected, null));
+
+		//Create root node if it doesn't exist
+		try {
+			create("/",null,null, CreateMode.PERSISTENT);
+		} catch (KeeperException e) {
+			//Ignore
+		}
 	}
 
 
@@ -82,23 +91,25 @@ public class NodeServiceImpl implements NodeService {
 		final Node node = new Node(path, data, createMode);
 
 		try {
-			Node parent = zkDatabase.get(node.getParentPath());
-			int cversion = parent.getStat().getCversion();
+			if(!node.isRoot()){
+				Node parent = zkDatabase.get(node.getParentPath());
+				int cversion = parent.getStat().getCversion();
 
-			if (createMode.isSequential()) {
-				//The number of changes to the children of this znode.
-				path = path + String.format("%010d", cversion);
-				node.setPath(path);
+				if (createMode.isSequential()) {
+					//The number of changes to the children of this znode.
+					path = path + String.format("%010d", cversion);
+					node.setPath(path);
+				}
+
+				// small optimization: sequential branches are never created in the root
+				if (!parent.isRoot()) {
+					zkDatabase.updateCVersion(parent.getPath(), cversion + 1);
+				}
 			}
 
 			long now = System.currentTimeMillis();
 			node.getStat().setCtime(now);
 			node.getStat().setMtime(now);
-
-			// small optimization: sequential branches are never created in the root
-			if (!parent.isRoot()) {
-				zkDatabase.updateCVersion(parent.getPath(), cversion + 1);
-			}
 
 			if (zkDatabase.create(session, node)) {
 				sendNewNodeEvents(node);

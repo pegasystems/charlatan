@@ -2,11 +2,12 @@ package org.apache.zookeeper.impl.node.bean;
 
 import org.apache.zookeeper.Watcher.Event.EventType;
 
+import java.util.Objects;
+
 /**
  * Created by natalia on 7/17/17.
  */
 public class NodeUpdate {
-	private int id;
 	private EventType eventType;
 	private String path;
 	private long timestamp;
@@ -16,24 +17,11 @@ public class NodeUpdate {
 	}
 
 	public NodeUpdate(EventType eventType, String path, long timestamp, int brokerId) {
-		this(-1, eventType, path, timestamp, brokerId);
-	}
 
-	public NodeUpdate(int id, EventType eventType, String path, long timestamp, int brokerId) {
-
-		this.id = id;
 		this.eventType = eventType;
 		this.path = path;
 		this.timestamp = timestamp;
 		this.brokerId = brokerId;
-	}
-
-	public int getId() {
-		return id;
-	}
-
-	public void setId(int id) {
-		this.id = id;
 	}
 
 	public EventType getEventType() {
@@ -71,5 +59,20 @@ public class NodeUpdate {
 	@Override
 	public String toString() {
 		return eventType + " [" + path + "]";
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (obj instanceof NodeUpdate) {
+			NodeUpdate other = (NodeUpdate) obj;
+			return Objects.equals(eventType, other.getEventType()) && Objects.equals(path, other.getPath()) && Objects.equals(timestamp, other.getTimestamp())
+					&& Objects.equals(brokerId, other.getBrokerId());
+		}
+		return false;
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(eventType, brokerId, path, timestamp);
 	}
 }
