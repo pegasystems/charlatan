@@ -1,77 +1,82 @@
 package com.pega.zooikeeper.watches.service;
 
+import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.Watcher;
 
-import java.util.Set;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
- * Created by natalia on 7/14/17.
+ * Created by natalia on 7/20/17.
  */
-public interface WatchService {
-	/**
-	 * Return a set of watchers that should be notified of the event. The
-	 * manager must not notify the watcher(s), however it will update it's
-	 * internal structure as if the watches had triggered. The intent being
-	 * that the callee is now responsible for notifying the watchers of the
-	 * event, possibly at some later time.
-	 *
-	 * @param state event state
-	 * @param type  event type
-	 * @param path  event path
-	 * @return may be empty set but must not be null
-	 */
-	Set<Watcher> materialize(Watcher.Event.KeeperState state,
-							 Watcher.Event.EventType type, String path);
+public abstract class WatchService {
+
+	private CopyOnWriteArrayList<WatchedEventListener> nodeUpdateListeners;
+	private WatchesNotifier watchesNotifier;
+	private WatchCache watchCache;
+
+	public WatchService(WatchCache watchCache) {
+		this.watchCache = watchCache;
+
+		this.watchesNotifier = new WatchesNotifier(watchCache);
+		nodeUpdateListeners = new CopyOnWriteArrayList<>();
+	}
+
+	public void addNodeUpdateListener(WatchedEventListener l) {
+		nodeUpdateListeners.add(l);
+	}
+
+	public void removeNodeUpdateListener(WatchedEventListener l) {
+		nodeUpdateListeners.remove(l);
+	}
 
 	/**
-	 * Returns the default watcher
+	 * WatchedEvent was triggered by remote server/broker. WatchedEvent will be processed by all subscribers.
 	 *
-	 * @return
+	 * @param event
 	 */
-	Watcher getDefaultWatcher();
+	public void processRemoteWatchedEvent(WatchedEvent event) {
+		watchesNotifier.processWatchedEvent(event, false);
+
+		// notify listeners
+		for (WatchedEventListener l : nodeUpdateListeners) {
+			l.processWatchedEvent(event, false);
+		}
+	}
 
 	/**
-	 * Register new "exist" watch for requested path. The watch will be triggered by created event.
+	 * WatchedEvent was triggered locally.
+	 * The implementation of this method should ensure that the event will become available to all servers/brokers except the current one.
 	 *
-	 * @param watcher
-	 * @param path
+	 * @param event
 	 */
-	void registerExistWatch(Watcher watcher, String path);
+	public final void processLocalWatchedEvent(WatchedEvent event) {
+		watchesNotifier.processWatchedEvent(event, false);
+		communicateEvent(event);
+	}
 
 	/**
-	 * Register default watch with the requested path. The watch will be triggered by created event.
-	 *
-	 * @param path
+	 * Communicate the event to everyone interested
 	 */
-	void registerExistWatch(String path);
+	protected abstract void communicateEvent(WatchedEvent event);
 
-	/**
-	 * Register watch for the requested path. The watch will be triggered by node data change.
-	 * @param watcher
-	 * @param path
-	 */
-	void registerDataWatch(Watcher watcher, String path);
+	public void start(){
+		ExecutorService executor = Executors.newSingleThreadExecutor();
+		executor.submit(watchesNotifier);
+	};
 
-	/**
-	 * Register default watch for the requested path. The watch will be triggered by node data change
-	 *
-	 * @param path
-	 */
-	void registerDataWatch(String path);
-
-	/**
-	 * Register the watch for child changes for the requested path. The watch will be triggered if new sub-node is
-	 * created or deleted or the node itself is removed.
-	 *
-	 * @param path
-	 */
-	void registerChildWatch(Watcher watcher, String path);
-
-	/**
-	 * Register default watch for child changes for the requested path. The watch will be triggered if new sub-node is
-	 * created or deleted or the node itself is removed.
-	 *
-	 * @param path
-	 */
-	void registerChildWatch(String path);
+	public void registerWatch(Watcher watcher, Watcher.WatcherType type, String path) {
+		switch (type) {
+			case Children:
+				watchCache.registerChildWatch(watcher, path);
+				break;
+			case Data:
+				watchCache.registerDataWatch(watcher, path);
+				break;
+			case Exist:
+				watchCache.registerExistWatch(watcher, path);
+				break;
+		}
+	}
 }

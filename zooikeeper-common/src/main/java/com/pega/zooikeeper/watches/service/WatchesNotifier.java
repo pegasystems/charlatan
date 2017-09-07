@@ -10,16 +10,16 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingDeque;
 
 /**
- * Created by natalia on 7/14/17.
+ * Notifies all watches interested in specific WatchedEvent
  */
-public class WatchesNotifier implements NodeUpdateListener, Runnable {
+public class WatchesNotifier implements WatchedEventListener, Runnable {
 
 	private static Logger logger = LoggerFactory.getLogger(WatchesNotifier.class);
 
 	private BlockingQueue<WatcherWatchedEvent> _blockingQueue = new LinkedBlockingDeque<WatcherWatchedEvent>();
-	private WatchService watchService;
-	public WatchesNotifier(WatchService watchService) {
-		this.watchService = watchService;
+	private WatchCache watchCache;
+	public WatchesNotifier(WatchCache watchCache) {
+		this.watchCache = watchCache;
 	}
 
 	@Override
@@ -36,10 +36,10 @@ public class WatchesNotifier implements NodeUpdateListener, Runnable {
 		}
 	}
 
-	public void processWatchedEvent(WatchedEvent event, boolean sameThread) {
-		Set<Watcher> watchers = watchService.materialize(event.getState(), event.getType(), event.getPath() );
+	public void processWatchedEvent(WatchedEvent event, boolean blocking) {
+		Set<Watcher> watchers = watchCache.materialize(event.getState(), event.getType(), event.getPath() );
 		for(Watcher watcher : watchers) {
-			if(sameThread)
+			if(blocking)
 				watcher.process(event);
 			else
 				_blockingQueue.add(new WatcherWatchedEvent(watcher, event));

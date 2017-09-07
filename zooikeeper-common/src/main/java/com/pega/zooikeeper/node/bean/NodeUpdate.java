@@ -11,17 +11,17 @@ public class NodeUpdate {
 	private EventType eventType;
 	private String path;
 	private long timestamp;
-	private int brokerId;
+	private int emitterId;
 
 	public NodeUpdate() {
 	}
 
-	public NodeUpdate(EventType eventType, String path, long timestamp, int brokerId) {
+	public NodeUpdate(EventType eventType, String path, long timestamp, int emitterId) {
 
 		this.eventType = eventType;
 		this.path = path;
 		this.timestamp = timestamp;
-		this.brokerId = brokerId;
+		this.emitterId = emitterId;
 	}
 
 	public EventType getEventType() {
@@ -48,12 +48,12 @@ public class NodeUpdate {
 		this.timestamp = timestamp;
 	}
 
-	public int getBrokerId() {
-		return brokerId;
+	public int getEmitterId() {
+		return emitterId;
 	}
 
-	public void setBrokerId(int brokerId) {
-		this.brokerId = brokerId;
+	public void setEmitterId(int emitterId) {
+		this.emitterId = emitterId;
 	}
 
 	@Override
@@ -66,13 +66,13 @@ public class NodeUpdate {
 		if (obj instanceof NodeUpdate) {
 			NodeUpdate other = (NodeUpdate) obj;
 			return Objects.equals(eventType, other.getEventType()) && Objects.equals(path, other.getPath()) && Objects.equals(timestamp, other.getTimestamp())
-					&& Objects.equals(brokerId, other.getBrokerId());
+					&& Objects.equals(emitterId, other.getEmitterId());
 		}
 		return false;
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(eventType, brokerId, path, timestamp);
+		return Objects.hash(eventType, emitterId, path, timestamp);
 	}
 }

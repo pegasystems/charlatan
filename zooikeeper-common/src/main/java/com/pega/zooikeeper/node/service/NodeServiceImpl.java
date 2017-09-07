@@ -3,6 +3,7 @@ package com.pega.zooikeeper.node.service;
 import com.pega.zooikeeper.node.bean.Node;
 import com.pega.zooikeeper.node.dao.NodeDao;
 import com.pega.zooikeeper.node.dao.RecordNotFoundException;
+import com.pega.zooikeeper.watches.service.WatchCache;
 import com.pega.zooikeeper.watches.service.WatchService;
 import com.pega.zooikeeper.watches.service.WatchesNotifier;
 import org.apache.zookeeper.*;
@@ -20,21 +21,19 @@ import java.util.concurrent.Executors;
  */
 public class NodeServiceImpl implements NodeService {
 
-	protected final WatchesNotifier watchesNotifier;
+//	protected final WatchesNotifier watchesNotifier;
 	private final NodeDao zkDatabase;
 	private final WatchService watchService;
+//	private final WatchCache watchCache;
 
 	private Logger logger = LoggerFactory.getLogger(NodeServiceImpl.class.getName());
 
 	public NodeServiceImpl(NodeDao zkDatabase, WatchService watchService){
 
 		this.zkDatabase = zkDatabase;
-
 		this.watchService = watchService;
-		this.watchesNotifier = new WatchesNotifier(this.watchService);
 
-		ExecutorService executor = Executors.newSingleThreadExecutor();
-		executor.submit(watchesNotifier);
+		watchService.start();
 
 		processEvent(new WatchedEvent(Watcher.Event.EventType.None, Watcher.Event.KeeperState.SyncConnected, null));
 	}
@@ -157,7 +156,7 @@ public class NodeServiceImpl implements NodeService {
 			Node node = zkDatabase.get(path);
 
 			if (watcher != null) {
-				watchService.registerChildWatch(watcher, path);
+				watchService.registerWatch(watcher, Watcher.WatcherType.Children, path);
 			}
 
 			return node.getChildren();
@@ -175,7 +174,7 @@ public class NodeServiceImpl implements NodeService {
 		}
 
 		if (watcher != null) {
-			watchService.registerDataWatch(watcher, path);
+			watchService.registerWatch(watcher, Watcher.WatcherType.Data, path);
 		}
 		return node.getData();
 	}
@@ -222,9 +221,9 @@ public class NodeServiceImpl implements NodeService {
 
 		if (watcher != null) {
 			if (stat != null) {
-				watchService.registerDataWatch(watcher, path);
+				watchService.registerWatch(watcher, Watcher.WatcherType.Data, path);
 			} else {
-				watchService.registerExistWatch(watcher, path);
+				watchService.registerWatch(watcher, Watcher.WatcherType.Exist, path);
 			}
 		}
 
@@ -235,25 +234,25 @@ public class NodeServiceImpl implements NodeService {
 	public void registerWatch(Watcher watcher, List<String> dataWatches, List<String> childWatches, List<String> existWatches) {
 		if (dataWatches != null) {
 			for (String dataWatch : childWatches) {
-				watchService.registerDataWatch(watcher, dataWatch);
+				watchService.registerWatch(watcher, Watcher.WatcherType.Data, dataWatch);
 			}
 		}
 
 		if (existWatches != null) {
 			for (String childWatch : childWatches) {
-				watchService.registerChildWatch(watcher, childWatch);
+				watchService.registerWatch(watcher, Watcher.WatcherType.Children, childWatch);
 			}
 		}
 
 		if (childWatches != null) {
 			for (String existWatch : childWatches) {
-				watchService.registerExistWatch(watcher, existWatch);
+				watchService.registerWatch(watcher, Watcher.WatcherType.Exist, existWatch);
 			}
 		}
 
 	}
 
 	protected void processEvent(WatchedEvent event) {
-		watchesNotifier.processWatchedEvent(event, false);
+		watchService.processLocalWatchedEvent(event);
 	}
 }

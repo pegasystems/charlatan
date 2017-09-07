@@ -27,7 +27,7 @@ public class WatchServiceImpl extends WatchService {
 	protected Set<NodeUpdate> lastCheckedNodeUpdates;
 	protected long lastCheckedTimestamp;
 	private NodeUpdateDao nodeUpdateDao;
-	private int emitterId;
+	private int broker;
 	private ScheduledExecutorService cleanerService;
 	private ScheduledExecutorService updatesPullService;
 
@@ -35,11 +35,11 @@ public class WatchServiceImpl extends WatchService {
 		this(watcheswatchCache, nodeUpdateDao, System.currentTimeMillis(), 100 + (int) (Math.random() * 100));
 	}
 
-	public WatchServiceImpl(WatchCache watcheswatchCache, NodeUpdateDao nodeUpdateDao, long serviceStartTime, int emitterId) {
-		super(watcheswatchCache);
+	public WatchServiceImpl(WatchCache watchCache, NodeUpdateDao nodeUpdateDao, long serviceStartTime, int brokerId) {
+		super(watchCache);
 
 		this.nodeUpdateDao = nodeUpdateDao;
-		this.emitterId = emitterId;
+		this.broker = brokerId;
 
 		this.lastCheckedTimestamp = serviceStartTime;
 		this.lastCheckedNodeUpdates = new HashSet<>();
@@ -68,7 +68,7 @@ public class WatchServiceImpl extends WatchService {
 
 	protected void pullUpdates() {
 		try {
-			List<NodeUpdate> updates = nodeUpdateDao.getNodeUpdates(emitterId, lastCheckedTimestamp);
+			List<NodeUpdate> updates = nodeUpdateDao.getNodeUpdates(broker, lastCheckedTimestamp);
 
 			Set<NodeUpdate> latestNodeUpdates = new HashSet<>(lastCheckedNodeUpdates);
 			long latestTimestamp = lastCheckedTimestamp;
@@ -118,7 +118,7 @@ public class WatchServiceImpl extends WatchService {
 	@Override
 	public void communicateEvent(WatchedEvent event) {
 		try {
-			NodeUpdate update = new NodeUpdate(event.getType(), event.getPath(), System.currentTimeMillis(), emitterId);
+			NodeUpdate update = new NodeUpdate(event.getType(), event.getPath(), System.currentTimeMillis(), broker);
 			nodeUpdateDao.insertUpdate(update);
 		} catch (Throwable e) {
 			logger.warn("clear updates failed [" + e.getMessage() + "]");

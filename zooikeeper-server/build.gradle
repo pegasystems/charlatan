@@ -6,6 +6,9 @@ group=projectGroup
 dependencies {
     // The production code uses the SLF4J logging API at compile time
     compile project(':zooikeeper-common')
+    // temp for test
+    compile project(':zooikeeper-dao-sqlite')
+    
     compile group: 'log4j', name: 'log4j', version: '1.2.17'
     compile group: 'org.slf4j', name: 'slf4j-log4j12', version: '1.7.7'
 

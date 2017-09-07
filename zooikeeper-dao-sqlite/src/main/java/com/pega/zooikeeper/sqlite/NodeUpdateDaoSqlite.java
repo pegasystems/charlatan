@@ -29,7 +29,7 @@ public class NodeUpdateDaoSqlite extends DatabaseConnection implements NodeUpdat
 
 				ps.setString(1, update.getEventType().name());
 				ps.setString(2, update.getPath());
-				ps.setInt(3, update.getBrokerId());
+				ps.setInt(3, update.getEmitterId());
 				ps.setLong(4, System.currentTimeMillis());
 
 				executeUpdate(ps);

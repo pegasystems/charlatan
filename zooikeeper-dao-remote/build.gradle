@@ -2,7 +2,7 @@ version=projectVersion
 group=projectGroup
 
 dependencies {
-    compile project(':zooikeeper-common')
+    compile project(':zooikeeper-adapter')
     compile group: 'io.netty', name: 'netty', version: '3.10.6.Final'
     compile group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.9.0'
 //    compile 'org.apache.httpcomponents:httpclient:4.5.3'

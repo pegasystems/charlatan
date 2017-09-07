@@ -19,13 +19,11 @@
 package org.apache.zookeeper;
 
 import com.pega.zooikeeper.broker.service.BrokerMonitorService;
-import com.pega.zooikeeper.utils.ZookeeperClassLoader;
-import com.pega.zooikeeper.node.service.LocalNodeService;
 import com.pega.zooikeeper.node.service.NodeService;
-import com.pega.zooikeeper.watches.service.WatchServiceImpl;
+import com.pega.zooikeeper.node.service.NodeServiceImpl;
+import com.pega.zooikeeper.utils.ZookeeperClassLoader;
 import org.apache.zookeeper.data.ACL;
 import org.apache.zookeeper.data.Stat;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -58,10 +56,9 @@ public class ZooKeeper implements ZookeeperInterface {
 		this.session = new Random().nextLong();
 		this.defaultWatcher = watcher;
 
-		this.nodeService = new LocalNodeService(
+		this.nodeService = new NodeServiceImpl(
 				ZookeeperClassLoader.getNodeDao(),
-				ZookeeperClassLoader.getRemoteNodeUpdateManager(),
-				new WatchServiceImpl(watcher, false));
+				ZookeeperClassLoader.getWatchService());
 
 		brokerMonitorService = new BrokerMonitorService(ZookeeperClassLoader.getBrokerDaoImpl(), this, sessionTimeout);
 		//Create root node if it doesn't exist
