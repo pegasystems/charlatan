@@ -1,11 +1,7 @@
 version=projectVersion
 
+
 subprojects {
     apply plugin: 'java'
     apply plugin: "maven"
-}
-
-repositories {
-    mavenCentral()
-    mavenLocal()
 }

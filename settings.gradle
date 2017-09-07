@@ -1,4 +1,6 @@
 rootProject.name = projectName
-include 'zookeeper-db'
-include 'zookeeper-db-sqlite'
-include 'zookeeper-db-remote'
+include 'zooikeeper-common'
+include 'zooikeeper-adapter'
+include 'zooikeeper-dao-sqlite'
+include 'zooikeeper-dao-remote'
+include 'zooikeeper-server'
