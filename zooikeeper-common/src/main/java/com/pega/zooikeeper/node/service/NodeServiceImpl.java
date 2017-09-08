@@ -34,8 +34,6 @@ public class NodeServiceImpl implements NodeService {
 		this.watchService = watchService;
 
 		watchService.start();
-
-		processEvent(new WatchedEvent(Watcher.Event.EventType.None, Watcher.Event.KeeperState.SyncConnected, null));
 	}
 
 

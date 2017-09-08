@@ -53,7 +53,11 @@ public abstract class WatchService {
 	 */
 	public final void processLocalWatchedEvent(WatchedEvent event) {
 		watchesNotifier.processWatchedEvent(event, false);
-		communicateEvent(event);
+
+		//Only emitter session is interested in None event
+		if(event.getType()!= Watcher.Event.EventType.None) {
+			communicateEvent(event);
+		}
 	}
 
 	/**

@@ -56,11 +56,20 @@ public class ZooKeeper implements ZookeeperInterface {
 		this.session = new Random().nextLong();
 		this.defaultWatcher = watcher;
 
+		brokerMonitorService = new BrokerMonitorService(ZookeeperClassLoader.getBrokerDaoImpl(), this, sessionTimeout);
+
 		this.nodeService = new NodeServiceImpl(
 				ZookeeperClassLoader.getNodeDao(),
 				ZookeeperClassLoader.getWatchService());
 
-		brokerMonitorService = new BrokerMonitorService(ZookeeperClassLoader.getBrokerDaoImpl(), this, sessionTimeout);
+		executor.submit(new Runnable() {
+			@Override
+			public void run() {
+				defaultWatcher.process(new WatchedEvent(Watcher.Event.EventType.None, Watcher.Event.KeeperState.SyncConnected, null));
+			}
+		});
+
+
 		//Create root node if it doesn't exist
 		try {
 			create("/", null, null, CreateMode.PERSISTENT);
