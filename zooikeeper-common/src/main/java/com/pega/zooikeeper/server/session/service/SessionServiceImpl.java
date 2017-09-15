@@ -16,7 +16,7 @@ public class SessionServiceImpl implements SessionService {
 
 	@Override
 	public void registerSession(String serverId, Session session) {
-		sessionDao.insertSesssion(serverId, session);
+		sessionDao.insertSession(serverId, session);
 	}
 
 	@Override
@@ -26,7 +26,7 @@ public class SessionServiceImpl implements SessionService {
 
 	@Override
 	public void deleteSession(UUID uuid) {
-		sessionDao.deleteSesssion(uuid);
+		sessionDao.deleteSession(uuid);
 	}
 
 	@Override

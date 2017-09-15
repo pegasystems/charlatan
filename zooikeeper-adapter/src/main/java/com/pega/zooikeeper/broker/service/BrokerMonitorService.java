@@ -1,8 +1,10 @@
 package com.pega.zooikeeper.broker.service;
 
-import com.pega.zooikeeper.broker.bean.BrokerInfo;
-import com.pega.zooikeeper.broker.dao.BrokerDao;
 import com.pega.zooikeeper.node.service.NodeService;
+import com.pega.zooikeeper.server.session.bean.Session;
+import com.pega.zooikeeper.server.session.dao.SessionDao;
+import com.pega.zooikeeper.server.session.service.SessionService;
+import com.pega.zooikeeper.server.session.service.SessionServiceImpl;
 import com.pega.zooikeeper.utils.NamedThreadFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,24 +17,22 @@ import java.util.concurrent.TimeUnit;
 /**
  * Created by natalia on 7/24/17.
  */
-public class BrokerMonitorService {
+public class BrokerMonitorService extends SessionServiceImpl{
 
 	private final static Logger logger = LoggerFactory.getLogger(BrokerMonitorService.class.getName());
 
 	private final ScheduledExecutorService brokerInfoUpdater;
 	private final ScheduledExecutorService brokersChecker;
-	private final long sessionTimeout;
-	private final BrokerDao brokerDao;
 	private final NodeService nodeService;
 	private int brokerId;
-	private long session;
+	private Session session;
 	private long lastSeen;
 	private State state;
 
-	public BrokerMonitorService(BrokerDao brokerDao, NodeService nodeService, long sessionTimeout) {
-		this.brokerDao = brokerDao;
-		this.sessionTimeout = sessionTimeout;
+	public BrokerMonitorService(Session session, SessionDao sessionDao, NodeService nodeService) {
+		super(sessionDao);
 		this.nodeService = nodeService;
+		this.session = session;
 
 		this.brokerInfoUpdater = Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("BrokerMonitor"));
 		this.brokersChecker = Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("inactive-broker-checker"));
@@ -42,20 +42,19 @@ public class BrokerMonitorService {
 
 	private void invalidateStaleBrokers(boolean includeThisBroker) {
 		try {
-			List<BrokerInfo> staleBrokers = brokerDao.getBrokersInfo(System.currentTimeMillis() - sessionTimeout * 3);
+			List<Session> staleSessions = getStaleSessions(System.currentTimeMillis() - session.getTimeout() * 3);
 
-			for (BrokerInfo brokerInfo : staleBrokers) {
+			for (Session staleSession : staleSessions) {
 
-				if(!includeThisBroker && this.brokerId == brokerInfo.getBrokerId()){
-					logger.warn("This broker is in list of stale brokers!");
+				if (!includeThisBroker && session.getUuid().equals(staleSession.getUuid())) {
+					logger.warn("This broker is in the list of stale brokers!");
 				} else {
+					logger.info(String.format("Found stale session %d, invalidating the session", staleSession.getSessionId()));
 
-					logger.info(String.format("Found stale broker %d session %d, invalidating the session", brokerInfo.getBrokerId(), brokerInfo.getSession()));
-
-					nodeService.removeEphemeralSessionNodes(brokerInfo.getSession());
+					nodeService.removeEphemeralSessionNodes(staleSession.getSessionId());
 
 					// Delete broker session info only after session ephemeral nodes are removed.
-					brokerDao.delete(brokerInfo);
+					deleteSession(staleSession.getUuid());
 				}
 			}
 		} catch (Throwable e) {
@@ -63,10 +62,13 @@ public class BrokerMonitorService {
 		}
 	}
 
-	public synchronized void start(int brokerId, long session) {
+	public synchronized void start(int brokerId, long sessionId) {
 		checkState(State.CREATED);
 		this.brokerId = brokerId;
-		this.session = session;
+		session.setSessionId(sessionId);
+
+		registerSession(String.valueOf(brokerId), session);
+
 		// Stale brokers should be invalidated during startup. This is important in case one of the stale brokers is current broker with previous session.
 		invalidateStaleBrokers(true);
 		brokerInfoUpdater.scheduleAtFixedRate(new Runnable() {
@@ -74,20 +76,23 @@ public class BrokerMonitorService {
 			public void run() {
 				updateBrokerInfo();
 			}
-		}, sessionTimeout / 2, sessionTimeout / 2, TimeUnit.MILLISECONDS);
+		}, session.getTimeout() / 2, session.getTimeout() / 2, TimeUnit.MILLISECONDS);
+
 		brokersChecker.scheduleAtFixedRate(new Runnable() {
 			@Override
 			public void run() {
 				invalidateStaleBrokers(false);
 			}
-		}, sessionTimeout, sessionTimeout, TimeUnit.MILLISECONDS);
+		}, session.getTimeout(), session.getTimeout(), TimeUnit.MILLISECONDS);
+
 		setState(State.STARTED);
 	}
 
 	private void updateBrokerInfo() {
 		try {
 			lastSeen = System.currentTimeMillis();
-			brokerDao.update(new BrokerInfo(brokerId, session, lastSeen));
+			session.setLastTimeSeen(lastSeen);
+			updateSession(session);
 		} catch (Throwable e) {
 			logger.warn("Failed to update broker info");
 		}
@@ -106,7 +111,7 @@ public class BrokerMonitorService {
 			}
 
 			try {
-				brokerDao.delete(new BrokerInfo(brokerId, session, lastSeen));
+				deleteSession(session.getUuid());
 			} catch (Exception e) {
 			}
 			setState(State.STOPPED);

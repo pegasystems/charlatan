@@ -15,7 +15,7 @@ import java.util.UUID;
 
 public class SessionDaoSqlite extends DatabaseConnection implements SessionDao {
 	@Override
-	public void insertSesssion(String serverId, Session session) {
+	public void insertSession(String serverId, Session session) {
 		String sql = "INSERT INTO sessions(uuid,id,start_time,last_seen,server_id) VALUES(?,?,?,?,?)";
 
 		try (Connection c = getConnection()) {
@@ -52,7 +52,7 @@ public class SessionDaoSqlite extends DatabaseConnection implements SessionDao {
 	}
 
 	@Override
-	public void deleteSesssion(UUID uuid) {
+	public void deleteSession(UUID uuid) {
 		String sql = "DELETE FROM sessions WHERE uuid=?";
 
 		try (Connection c = getConnection()) {

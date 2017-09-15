@@ -1,11 +1,9 @@
 package com.pega.zooikeeper.utils;
 
-import com.pega.zooikeeper.broker.dao.BrokerDao;
 import com.pega.zooikeeper.node.dao.NodeDao;
 
+import com.pega.zooikeeper.server.session.dao.SessionDao;
 import com.pega.zooikeeper.watches.dao.NodeUpdateDao;
-import com.pega.zooikeeper.watches.service.WatchCache;
-import com.pega.zooikeeper.watches.service.WatchCacheImpl;
 import com.pega.zooikeeper.watches.service.WatchService;
 import com.pega.zooikeeper.watches.service.WatchServiceImpl;
 import org.reflections.ReflectionUtils;
@@ -27,12 +25,12 @@ public class ZookeeperClassLoader {
 //	            .setExpandSuperTypes(false));
 
 	private static NodeDao nodeDaoImpl;
-	private static BrokerDao brokerDaoImpl;
+	private static SessionDao sessionDaoImpl;
 	private static WatchService watchService;
 
 	static {
 		loadNodeDaoImpl();
-		loadBrokerDaoImpl();
+		loadSessionDaoImpl();
 		loadRemoteNodeUpdatesImpl();
 	}
 
@@ -92,21 +90,21 @@ public class ZookeeperClassLoader {
 		}
 	}
 
-	private static void loadBrokerDaoImpl() {
-		Set<Class<? extends BrokerDao>> brokerDaoImpls = reflections.getSubTypesOf(BrokerDao.class);
+	private static void loadSessionDaoImpl() {
+		Set<Class<? extends SessionDao>> sessionDaoImpls = reflections.getSubTypesOf(SessionDao.class);
 
-		if (brokerDaoImpls.size() == 0) {
+		if (sessionDaoImpls.size() == 0) {
 			throw new RuntimeException("No BrokerDao implementation found");
 		}
 
-		if (brokerDaoImpls.size() > 1) {
+		if (sessionDaoImpls.size() > 1) {
 			throw new RuntimeException("Multiple BrokerDao implementations found");
 		}
 
-		Class<? extends BrokerDao> brokerDao = brokerDaoImpls.iterator().next();
+		Class<? extends SessionDao> sessionDao = sessionDaoImpls.iterator().next();
 
 		try {
-			brokerDaoImpl = brokerDao.newInstance();
+			sessionDaoImpl = sessionDao.newInstance();
 
 		} catch (Exception e) {
 			throw new ZookeeperRuntimeException("Failed to instantiate BrokerDao", e);
@@ -121,7 +119,7 @@ public class ZookeeperClassLoader {
 		return watchService;
 	}
 
-	public static BrokerDao getBrokerDaoImpl() {
-		return brokerDaoImpl;
+	public static SessionDao getSessionDaoImpl() {
+		return sessionDaoImpl;
 	}
 }

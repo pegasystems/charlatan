@@ -92,25 +92,6 @@ public class ZooikeeperNettyServer {
 		nodeService = new NodeServiceImpl(nodeDao, watchService);
 	}
 
-	public static void main(String[] args) {
-
-//		org.apache.log4j.BasicConfigurator.configure();
-//
-//		ZooikeeperNettyServer server = new ZooikeeperServerBuilder()
-//				.setHost("localhost")
-//				.setPort(2181)
-//				.setId("server1")
-//				.setWorkerCount(5)
-//				.setSecure(true)
-//				.setNodeDao(new com.pega.zooikeeper.sqlite.NodeDaoSqlite())
-//				.setWatchService(new WatchServiceImpl(new com.pega.zooikeeper.sqlite.NodeUpdateDaoSqlite()))
-//				.setSessionService(new SessionServiceImpl(new SessionDaoSqlite()))
-//				.setThreadFactory(new NamedThreadFactory("zooikeeper"))
-//				.build();
-//
-//		server.start();
-	}
-
 	public synchronized void start() {
 		if (!isRunning()) {
 

@@ -13,7 +13,7 @@ public interface SessionDao {
 	 * @param serverId
 	 * @param session
 	 */
-	void insertSesssion(String serverId, Session session);
+	void insertSession(String serverId, Session session);
 
 	/**
 	 * Update session details.
@@ -27,7 +27,7 @@ public interface SessionDao {
 	 *
 	 * @param uuid
 	 */
-	void deleteSesssion(UUID uuid);
+	void deleteSession(UUID uuid);
 
 	/**
 	 * Return list of the stale sessions.

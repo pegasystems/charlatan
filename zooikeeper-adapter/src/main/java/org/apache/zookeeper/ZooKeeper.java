@@ -21,6 +21,8 @@ package org.apache.zookeeper;
 import com.pega.zooikeeper.broker.service.BrokerMonitorService;
 import com.pega.zooikeeper.node.service.NodeService;
 import com.pega.zooikeeper.node.service.NodeServiceImpl;
+import com.pega.zooikeeper.server.session.bean.Session;
+import com.pega.zooikeeper.server.session.service.SessionServiceImpl;
 import com.pega.zooikeeper.utils.ZookeeperClassLoader;
 import org.apache.zookeeper.data.ACL;
 import org.apache.zookeeper.data.Stat;
@@ -30,6 +32,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.List;
 import java.util.Random;
+import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -56,7 +59,10 @@ public class ZooKeeper implements ZookeeperInterface {
 		this.session = new Random().nextLong();
 		this.defaultWatcher = watcher;
 
-		brokerMonitorService = new BrokerMonitorService(ZookeeperClassLoader.getBrokerDaoImpl(), this, sessionTimeout);
+		Session session = new Session(UUID.randomUUID(), System.currentTimeMillis());
+		session.setTimeout(sessionTimeout);
+
+		brokerMonitorService = new BrokerMonitorService(session, ZookeeperClassLoader.getSessionDaoImpl(), this);
 
 		this.nodeService = new NodeServiceImpl(
 				ZookeeperClassLoader.getNodeDao(),
