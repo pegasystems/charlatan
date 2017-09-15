@@ -51,7 +51,7 @@ import static org.jboss.netty.buffer.ChannelBuffers.wrappedBuffer;
  */
 public class ZooikeeperNettyConnection implements Watcher {
 
-	public static final int DEFAULT_MAX_SESSION_TIMEOUT = 60000;
+	public static final int DEFAULT_MAX_SESSION_TIMEOUT = 30000;
 
 	private static final Timer TIMER = new Timer();
 	private static final Logger logger = LoggerFactory.getLogger(ZooikeeperNettyConnection.class);
