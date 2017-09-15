@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -31,11 +32,11 @@ public class WatchServiceImpl extends WatchService {
 	private ScheduledExecutorService cleanerService;
 	private ScheduledExecutorService updatesPullService;
 
-	public WatchServiceImpl(NodeUpdateDao nodeUpdateDao) {
-		this(new WatchCacheImpl(), nodeUpdateDao, System.currentTimeMillis(), 100 + (int) (Math.random() * 100));
+	public WatchServiceImpl(NodeUpdateDao nodeUpdateDao, ThreadFactory threadFactory) {
+		this(new WatchCacheImpl(), nodeUpdateDao, System.currentTimeMillis(), 100 + (int) (Math.random() * 100), threadFactory);
 	}
 
-	public WatchServiceImpl(WatchCache watchCache, NodeUpdateDao nodeUpdateDao, long serviceStartTime, int emitterId) {
+	public WatchServiceImpl(WatchCache watchCache, NodeUpdateDao nodeUpdateDao, long serviceStartTime, int emitterId, ThreadFactory threadFactory) {
 		super(watchCache);
 
 		this.nodeUpdateDao = nodeUpdateDao;
@@ -44,8 +45,8 @@ public class WatchServiceImpl extends WatchService {
 		this.lastCheckedTimestamp = serviceStartTime;
 		this.lastCheckedNodeUpdates = new HashSet<>();
 
-		cleanerService = Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("Updates-cleaner"));
-		updatesPullService = Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("Pull-updates"));
+		cleanerService = Executors.newSingleThreadScheduledExecutor(threadFactory);
+		updatesPullService = Executors.newSingleThreadScheduledExecutor(threadFactory);
 	}
 
 	public void start() {
