@@ -86,7 +86,7 @@ public class ZookeeperClassLoader {
 		try {
 			NodeUpdateDao nodeUpdateDao = nodeUpdateDaoImpl.newInstance();
 
-			watchService = WatchServiceImpl.class.getConstructor(WatchCache.class, NodeUpdateDao.class).newInstance(new WatchCacheImpl(),nodeUpdateDao);
+			watchService = WatchServiceImpl.class.getConstructor(NodeUpdateDao.class).newInstance(nodeUpdateDao);
 		} catch (Exception e) {
 			throw new ZookeeperRuntimeException("Failed to instantiate NodeUpdateDao", e);
 		}

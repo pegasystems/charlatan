@@ -30,4 +30,9 @@ public class GetChildrenRequest implements Deserializable {
 		path=reader.readString();
 		watch=reader.readBoolean();
 	}
+
+	@Override
+	public String toString(){
+		return String.format("GetChildren: %s, watch: %b", path, watch);
+	}
 }

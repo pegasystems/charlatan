@@ -23,6 +23,7 @@ import com.pega.zooikeeper.io.ZookeeperReader;
 import com.pega.zooikeeper.io.ZookeeperWriter;
 import com.pega.zooikeeper.node.service.NodeService;
 import com.pega.zooikeeper.server.io.*;
+import com.pega.zooikeeper.server.session.bean.Session;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.WatchedEvent;
@@ -37,10 +38,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.nio.ByteBuffer;
-import java.util.List;
-import java.util.Random;
-import java.util.Timer;
-import java.util.TimerTask;
+import java.util.*;
 
 import static org.jboss.netty.buffer.ChannelBuffers.wrappedBuffer;
 
@@ -50,34 +48,42 @@ import static org.jboss.netty.buffer.ChannelBuffers.wrappedBuffer;
  */
 public class ZooikeeperNettyConnection implements Watcher {
 
+	public static final int DEFAULT_MAX_SESSION_TIMEOUT = 60000;
+
 	private static final Timer TIMER = new Timer();
 	private static final Logger logger = LoggerFactory.getLogger(ZooikeeperNettyConnection.class);
 	volatile boolean closingChannel;
 	private Channel channel;
-	// Generated session id
-	private long sessionId;
+
+	// Session information
+	private Session session;
 	private long zid;
-	private int sessionTimeout;
 	// True if connect request was processed
 	private boolean initialized;
-	// Timestamp of the last received message in ms
-	private long lastMsgTimestamp;
 	// It is used to monitor read timeout
 	private TimerTask timerTask;
 	private NodeService nodeService;
+//
+//	ZooikeeperNettyConnection(Channel channel, NodeService nodeService) {
+//		this(channel,nodeService, new Session(UUID.randomUUID(), System.currentTimeMillis()));
+//	}
 
-	ZooikeeperNettyConnection(Channel channel, NodeService nodeService) {
+	ZooikeeperNettyConnection(Channel channel, NodeService nodeService, Session session) {
 		this.channel = channel;
 		this.closingChannel = false;
 		this.nodeService = nodeService;
+		this.session = session;
 	}
 
+	public Session getSession() {
+		return session;
+	}
 
 	public void receiveMessage(ChannelBuffer message) {
 		try {
 			while (message.readable()) {
 
-				lastMsgTimestamp = System.currentTimeMillis();
+				session.setLastTimeSeen(System.currentTimeMillis());
 
 				// read message length
 				int length = message.readInt();
@@ -115,15 +121,15 @@ public class ZooikeeperNettyConnection implements Watcher {
 				byte[] password = new byte[16];
 				random.nextBytes(password);
 
-
-				this.sessionId = sessionId;
-				this.zid = connectRequest.getZxid();
-
+				session.setSessionId(sessionId);
 				setTimeout(connectRequest.getTimeOut());
 
+				this.zid = connectRequest.getZxid();
+
+
 				ConnectResponse connectResponse = new ConnectResponse(connectRequest.getProtocolVersion(),
-						connectRequest.getTimeOut(),
-						sessionId,
+						session.getTimeout(),
+						session.getSessionId(),
 						password,
 						connectRequest.isReadOnly());
 
@@ -160,7 +166,7 @@ public class ZooikeeperNettyConnection implements Watcher {
 				return;
 			}
 
-			logger.debug(String.format("Requested: %s, id: %d", requestType.name(), transactionId));
+//			logger.debug(String.format("Requested: %s, id: %d", requestType.name(), transactionId));
 
 			switch (requestType) {
 				case SetWatches:
@@ -219,19 +225,29 @@ public class ZooikeeperNettyConnection implements Watcher {
 	}
 
 	public void close() {
-		logger.debug("Close called for session " + Long.toHexString(sessionId));
+		logger.debug("Close called for session " + session);
 
 		closingChannel = true;
 
-		if (timerTask != null) {
-			timerTask.cancel();
+		try {
+			if (timerTask != null) {
+				timerTask.cancel();
+			}
+		}
+		catch( Exception e ){
+			logger.warn(e.getMessage());
 		}
 
-		if (channel.isOpen()) {
-			channel.write(ChannelBuffers.EMPTY_BUFFER).addListener(ChannelFutureListener.CLOSE);
+		try {
+			if (channel.isOpen()) {
+				channel.write(ChannelBuffers.EMPTY_BUFFER).addListener(ChannelFutureListener.CLOSE);
+			}
+		}
+		catch( Exception e){
+			logger.warn(e.getMessage());
 		}
 
-		nodeService.close(sessionId);
+		nodeService.close(session.getSessionId());
 	}
 
 	private Response processPingRequest() {
@@ -243,6 +259,7 @@ public class ZooikeeperNettyConnection implements Watcher {
 		SetWatchesRequest setWatches = new SetWatchesRequest();
 		setWatches.deserialize(reader);
 
+		logger.debug(setWatches.toString());
 		nodeService.registerWatch(this, setWatches.getDataWatches(), setWatches.getChildWatches(), setWatches.getExistWatches());
 		return new Response();
 	}
@@ -252,6 +269,8 @@ public class ZooikeeperNettyConnection implements Watcher {
 		existRequest.deserialize(reader);
 
 		Stat stat = nodeService.exists(existRequest.getPath(), existRequest.isWatch() ? this : null);
+
+		logger.debug(existRequest.toString());
 
 		if (stat == null) {
 			throw new KeeperException.NoNodeException(existRequest.getPath());
@@ -264,7 +283,8 @@ public class ZooikeeperNettyConnection implements Watcher {
 		CreateRequest createRequest = new CreateRequest();
 		createRequest.deserialize(reader);
 
-		String nodePath = nodeService.create(sessionId, createRequest.getPath(), createRequest.getData(), createRequest.getAcl(), CreateMode.fromFlag(createRequest.getFlags()));
+		logger.debug(createRequest.toString());
+		String nodePath = nodeService.create(session.getSessionId(), createRequest.getPath(), createRequest.getData(), createRequest.getAcl(), CreateMode.fromFlag(createRequest.getFlags()));
 
 		return new CreateResponse(nodePath);
 	}
@@ -276,6 +296,8 @@ public class ZooikeeperNettyConnection implements Watcher {
 		Stat stat = new Stat();
 		byte[] data = nodeService.getData(getDataRequest.getPath(), getDataRequest.isWatch() ? this : null, stat);
 
+		logger.debug(getDataRequest.toString());
+
 		GetDataResponse getDataResponse = new GetDataResponse();
 		getDataResponse.setStat(stat);
 		getDataResponse.setData(data);
@@ -286,6 +308,7 @@ public class ZooikeeperNettyConnection implements Watcher {
 	private Response processSetDataRequest(ZookeeperReader reader) throws IOException, KeeperException {
 		SetDataRequest setDataRequest = new SetDataRequest();
 		setDataRequest.deserialize(reader);
+		logger.debug(setDataRequest.toString());
 		Stat stat = nodeService.setData(setDataRequest.getPath(), setDataRequest.getData(), setDataRequest.getVersion());
 		return new SetDataResponse(stat);
 	}
@@ -293,6 +316,7 @@ public class ZooikeeperNettyConnection implements Watcher {
 	private Response processGetChildrenRequest(ZookeeperReader reader) throws IOException, KeeperException {
 		GetChildrenRequest getChildrenRequest = new GetChildrenRequest();
 		getChildrenRequest.deserialize(reader);
+		logger.debug(getChildrenRequest.toString());
 		boolean watch = getChildrenRequest.isWatch();
 		List<String> children = nodeService.getChildren(getChildrenRequest.getPath(), watch ? this : null);
 		return new GetChildrenResponse(children);
@@ -307,7 +331,7 @@ public class ZooikeeperNettyConnection implements Watcher {
 
 
 	private Response processCloseSession() {
-		nodeService.close(sessionId);
+		nodeService.close(session.getSessionId());
 		return new Response();
 	}
 
@@ -347,17 +371,18 @@ public class ZooikeeperNettyConnection implements Watcher {
 	}
 
 	private void setTimeout(int timeout) {
-		sessionTimeout = timeout;
+		session.setTimeout(Math.min(timeout,DEFAULT_MAX_SESSION_TIMEOUT) );
 
 		//start checking the timeout
-		if (timerTask == null && sessionTimeout > 0 && !closingChannel) {
+		if (timerTask == null && session.getTimeout() > 0 && !closingChannel) {
 			timerTask = new TimerTask() {
 				@Override
 				public void run() {
-					if ((lastMsgTimestamp + sessionTimeout) < System.currentTimeMillis()) {
+					if ((session.getLastTimeSeen() + session.getTimeout()) < System.currentTimeMillis()) {
 						logger.info("Read timeout on " + channel.getRemoteAddress());
 						close();
 					}
+					// Should we update session info in the db? If zooikeeper server crashes ephemeral nodes will not be deleted.
 				}
 			};
 			TIMER.schedule(timerTask, timeout, 1000);

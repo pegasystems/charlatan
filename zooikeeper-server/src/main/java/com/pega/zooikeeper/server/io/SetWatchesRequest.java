@@ -52,4 +52,22 @@ public class SetWatchesRequest implements Deserializable {
 	public void setRelativeZxid(long relativeZxid) {
 		this.relativeZxid = relativeZxid;
 	}
+
+	@Override
+	public String toString(){
+		StringBuilder builder = new StringBuilder("SetWatches: ");
+		appendLog(builder,"Data", dataWatches);
+		appendLog(builder,"Exist", existWatches);
+		appendLog(builder,"Child", childWatches);
+
+		return builder.toString();
+	}
+
+	private void appendLog(StringBuilder builder, String name, List<String> list) {
+		builder.append(name).append("[");
+		for(String watch : list){
+			builder.append(watch).append(",");
+		}
+		builder.append("], ");
+	}
 }

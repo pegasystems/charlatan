@@ -64,4 +64,9 @@ public class CreateRequest implements Deserializable {
 
 		flags = reader.readInt();
 	}
+
+	@Override
+	public String toString(){
+		return String.format("Create: %s", path);
+	}
 }

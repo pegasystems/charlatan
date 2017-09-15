@@ -227,7 +227,6 @@ public class NodeDaoSqlite extends DatabaseConnection implements NodeDao {
 
 	protected int getNodeKey(String path) throws RecordNotFoundException {
 
-		logger.debug("Get node key for node " + path);
 		String sql = "SELECT pk FROM nodes WHERE name = ? ";
 
 		try (Connection c = getConnection()) {
@@ -242,7 +241,6 @@ public class NodeDaoSqlite extends DatabaseConnection implements NodeDao {
 			throw new DataAccessException(e);
 		}
 
-		logger.debug("No node found " + path);
 		throw new RecordNotFoundException(path + " not found");
 	}
 

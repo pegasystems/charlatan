@@ -30,4 +30,9 @@ public class GetDataRequest implements Deserializable {
 		path = reader.readString();
 		watch = reader.readBoolean();
 	}
+
+	@Override
+	public String toString(){
+		return String.format("GetData: %s, watch: %b", path, watch);
+	}
 }

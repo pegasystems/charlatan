@@ -31,12 +31,12 @@ public class WatchServiceImpl extends WatchService {
 	private ScheduledExecutorService cleanerService;
 	private ScheduledExecutorService updatesPullService;
 
-	public WatchServiceImpl(WatchCache watcheswatchCache, NodeUpdateDao nodeUpdateDao) {
-		this(watcheswatchCache, nodeUpdateDao, System.currentTimeMillis(), 100 + (int) (Math.random() * 100));
+	public WatchServiceImpl(NodeUpdateDao nodeUpdateDao) {
+		this(new WatchCacheImpl(), nodeUpdateDao, System.currentTimeMillis(), 100 + (int) (Math.random() * 100));
 	}
 
-	public WatchServiceImpl(WatchCache watcheswatchCache, NodeUpdateDao nodeUpdateDao, long serviceStartTime, int emitterId) {
-		super(watcheswatchCache);
+	public WatchServiceImpl(WatchCache watchCache, NodeUpdateDao nodeUpdateDao, long serviceStartTime, int emitterId) {
+		super(watchCache);
 
 		this.nodeUpdateDao = nodeUpdateDao;
 		this.emitterId = emitterId;

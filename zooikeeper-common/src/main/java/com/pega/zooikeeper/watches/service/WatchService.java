@@ -55,7 +55,7 @@ public abstract class WatchService {
 		watchesNotifier.processWatchedEvent(event, false);
 
 		//Only emitter session is interested in None event
-		if(event.getType()!= Watcher.Event.EventType.None) {
+		if (event.getType() != Watcher.Event.EventType.None) {
 			communicateEvent(event);
 		}
 	}
@@ -65,10 +65,12 @@ public abstract class WatchService {
 	 */
 	protected abstract void communicateEvent(WatchedEvent event);
 
-	public void start(){
+	public void start() {
 		ExecutorService executor = Executors.newSingleThreadExecutor();
 		executor.submit(watchesNotifier);
-	};
+	}
+
+	;
 
 	public void registerWatch(Watcher watcher, Watcher.WatcherType type, String path) {
 		switch (type) {

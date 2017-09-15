@@ -41,4 +41,9 @@ public class SetDataRequest implements Deserializable {
 		data = reader.readBuffer();
 		version = reader.readInt();
 	}
+
+	@Override
+	public String toString(){
+		return String.format("SetData: %s", path);
+	}
 }

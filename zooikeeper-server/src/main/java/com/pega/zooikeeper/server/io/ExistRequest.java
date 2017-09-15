@@ -30,4 +30,9 @@ public class ExistRequest implements Deserializable {
 		path=reader.readString();
 		watch=reader.readBoolean();
 	}
+
+	@Override
+	public String toString(){
+		return String.format("Exist: %s, watch: %b", path, watch);
+	}
 }
