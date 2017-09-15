@@ -38,7 +38,10 @@ import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.nio.ByteBuffer;
-import java.util.*;
+import java.util.List;
+import java.util.Random;
+import java.util.Timer;
+import java.util.TimerTask;
 
 import static org.jboss.netty.buffer.ChannelBuffers.wrappedBuffer;
 
@@ -371,18 +374,21 @@ public class ZooikeeperNettyConnection implements Watcher {
 	}
 
 	private void setTimeout(int timeout) {
-		session.setTimeout(Math.min(timeout,DEFAULT_MAX_SESSION_TIMEOUT) );
+		session.setTimeout(Math.min(timeout, DEFAULT_MAX_SESSION_TIMEOUT));
 
 		//start checking the timeout
 		if (timerTask == null && session.getTimeout() > 0 && !closingChannel) {
 			timerTask = new TimerTask() {
 				@Override
 				public void run() {
-					if ((session.getLastTimeSeen() + session.getTimeout()) < System.currentTimeMillis()) {
-						logger.info("Read timeout on " + channel.getRemoteAddress());
-						close();
+					try {
+						if ((session.getLastTimeSeen() + session.getTimeout()) < System.currentTimeMillis()) {
+							logger.info("Read timeout on " + channel.getRemoteAddress());
+							close();
+						}
+					} catch (Exception e) {
+						logger.error("Unable to check session timeout", e);
 					}
-					// Should we update session info in the db? If zooikeeper server crashes ephemeral nodes will not be deleted.
 				}
 			};
 			TIMER.schedule(timerTask, timeout, 1000);
