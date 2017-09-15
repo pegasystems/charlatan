@@ -207,8 +207,6 @@ public class NodeServiceImpl implements NodeService {
 
 	@Override
 	public Stat exists(String path, Watcher watcher) {
-		logger.info("Checking node " + path);
-
 		Stat stat = null;
 		try {
 			Node node = zkDatabase.get(path);
