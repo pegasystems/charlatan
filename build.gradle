@@ -1,7 +1,31 @@
-version=projectVersion
+allprojects {
+    repositories {
+        ivy {
+            ivyPattern "${rootProject.projectDir}/../ivy/[organisation]/[module]-ivy-[revision].xml"
+            artifactPattern "${rootProject.projectDir}/../ivy/[organisation]/[module]-[revision](-[classifier]).[ext]"
+        }
+    }
+}
 
+ext.sonarEnabled = {
+    JavaVersion.current() >= JavaVersion.VERSION_1_8
+}
 
-subprojects {
-    apply plugin: 'java'
-    apply plugin: "maven"
+if (!sonarEnabled()) {
+    logger.warn('WARNING: Sonarqube analysis cannot be executed with JAVA 7')
+}
+
+configurations { scripts }
+dependencies { 
+    scripts group: 'com.pega.decision.build', name: 'dsm-project', version: 'LATEST-SNAPSHOT', ext: 'gradle'
+    scripts group: 'com.pega.decision.build', name: 'sonar', version: 'LATEST-SNAPSHOT', ext: 'gradle'
+}
+
+configurations.scripts.resolve().each { 
+	if (it.name.contains("sonar-LATEST-SNAPSHOT.gradle") && (sonarEnabled())) {
+		apply from: it
+	}
+	else if (!it.name.contains("sonar-LATEST-SNAPSHOT.gradle")) {
+		apply from: it
+	}
 }
