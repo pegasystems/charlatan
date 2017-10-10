@@ -1,7 +1,6 @@
 # Charlatan
 
-Charlatan (from Dutch _zooi_ - mess, chaos) is a library created for Apache Kafka in order to
-substitute real zookeeper with zookeeper imitation. 
+Charlatan is a library created for Apache Kafka in order to substitute real zookeeper with zookeeper imitation. 
 
 ## Motivation
 Kafka is a great product, but it requires running Zookeeper cluster. This means that to manage 
@@ -10,9 +9,9 @@ This complicates Kafka usage especially in case when we already have similar ser
 can be known product like etcd, consul, etc. or own highly available service.
 
 Charlatan provides two options to use Kafka without zookeeper:
-1. In stead of Zookeeper Kafka communicates with the different server using Zookeeper messaging 
+1. Instead of Zookeeper Kafka communicates with the different server using Zookeeper messaging 
 protocol. This option was implemented in ***Charlatan-server*** sub-project.
-2. In stead of Zookeeper driver Kafka uses Charlatan adapter that stores all zookeeper related
+2. Instead of Zookeeper driver Kafka uses Charlatan adapter that stores all zookeeper related
 information in the relational database. In this case Kafka doesn't need other running service
 and database can play the role of the highly available service. This option was implemented in 
 ***Charlatan-adapter*** sub-project.
@@ -34,7 +33,7 @@ In order to replace Zookeeper
 ### Charlatan-server<a name="charlatan-server"></a>
 This options supposes that standard Kafka distribution is used and instead of real Zookeeper
 Kafka is pointed to the Charlatan server. The schema could look like: 
-![](imgs/CharlatanServer.png "Charlatan server usage")
+![](images/CharlatanServer.png "Charlatan server usage")
 Note that as long as same database is used multiple Charlatan server can be running.
 One or multiple Kafka instances can be connected to the Charlatan server. Kafka broker isn't aware that 
 not a real Zookeeper is used. Standard Kafka setting ```zookeeper.connect``` is used in order to point Kafka to 
@@ -78,13 +77,17 @@ used for testing purposes).
 ***Charlatan-adapter*** fails if no DAO implementation was found or multiple DAO implementations were found.
 
 In case Charlatan DAO interfaces were implemented for relational database the schema would look like:
-![](imgs/CharlatanAdapterDB.png "Charlatan adapter with relational database")
 
-In more general approach Charlatan DAO interfaces implementation is a client to your highly available service.
-![](imgs/CharlatanAdapter.png "Charlatan adapter general implementation")
+![](images/CharlatanAdapterDB.png "Charlatan adapter with relational database")
+
+In more general approach Charlatan DAO interfaces implementation is a client to your 
+highly available service.
+
+![](images/CharlatanAdapter.png "Charlatan adapter general implementation")
 
 ### Charlatan-dao-sqlite<a name="charlatan-dao-sqlite"></a>
-This project was created for testing purposes and contains basic Charlatan DAO implementations for sqlite database.
+This project was created for testing purposes and contains basic Charlatan DAO implementations for
+sqlite database.
 ### Charlatan-dao-remote<a name="charlatan-dao-remote"></a>
-This project was created for demonstration purposes only and contains Charlatan DAO implementation that acts as a client
- to the remote REST-full service. 
+This project was created for demonstration purposes only and contains Charlatan DAO implementation 
+that acts as a client to the remote REST-ful service. 
