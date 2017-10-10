@@ -20,7 +20,7 @@ import java.util.Set;
 public class ZookeeperClassLoader {
 	private static Reflections reflections= //new Reflections(ClasspathHelper.forPackage("org.apache.zookeeper", ClasspathHelper.contextClassLoader()));
 	new Reflections(new ConfigurationBuilder()
-				.addUrls(ClasspathHelper.forPackage("com.pega.zooikeeper")));
+				.addUrls(ClasspathHelper.forPackage("com.pega.charlatan")));
 
 //	            .setExpandSuperTypes(false));
 

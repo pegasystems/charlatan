@@ -34,7 +34,7 @@ In order to replace Zookeeper
 ### Charlatan-server<a name="charlatan-server"></a>
 This options supposes that standard Kafka distribution is used and instead of real Zookeeper
 Kafka is pointed to the Charlatan server. The schema could look like: 
-![CharlatanServer](imgs/CharlatanServer.png "Charlatan server usage")
+![](imgs/CharlatanServer.png "Charlatan server usage")
 Note that as long as same database is used multiple Charlatan server can be running.
 One or multiple Kafka instances can be connected to the Charlatan server. Kafka broker isn't aware that 
 not a real Zookeeper is used. Standard Kafka setting ```zookeeper.connect``` is used in order to point Kafka to 
@@ -78,10 +78,10 @@ used for testing purposes).
 ***Charlatan-adapter*** fails if no DAO implementation was found or multiple DAO implementations were found.
 
 In case Charlatan DAO interfaces were implemented for relational database the schema would look like:
-![CharlatanAdapter1](imgs/CharlatanAdapterDB.png "Charlatan adapter with relational database")
+![](imgs/CharlatanAdapterDB.png "Charlatan adapter with relational database")
 
 In more general approach Charlatan DAO interfaces implementation is a client to your highly available service.
-![CharlatanAdapter](imgs/CharlatanAdapter.png "Charlatan adapter general implementation")
+![](imgs/CharlatanAdapter.png "Charlatan adapter general implementation")
 
 ### Charlatan-dao-sqlite<a name="charlatan-dao-sqlite"></a>
 This project was created for testing purposes and contains basic Charlatan DAO implementations for sqlite database.

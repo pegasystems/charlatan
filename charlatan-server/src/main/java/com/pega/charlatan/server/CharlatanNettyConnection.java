@@ -47,14 +47,14 @@ import static org.jboss.netty.buffer.ChannelBuffers.wrappedBuffer;
 
 /**
  * Channel wrapper that keeps session specific information like: sessionId, session read timeout.
- * ZooikeeperNettyConnection handles read timeout that is set during the connect handshake.
+ * CharlatanNettyConnection handles read timeout that is set during the connect handshake.
  */
-public class ZooikeeperNettyConnection implements Watcher {
+public class CharlatanNettyConnection implements Watcher {
 
 	public static final int DEFAULT_MAX_SESSION_TIMEOUT = 30000;
 
 	private static final Timer TIMER = new Timer();
-	private static final Logger logger = LoggerFactory.getLogger(ZooikeeperNettyConnection.class);
+	private static final Logger logger = LoggerFactory.getLogger(CharlatanNettyConnection.class);
 	volatile boolean closingChannel;
 	private Channel channel;
 
@@ -66,12 +66,8 @@ public class ZooikeeperNettyConnection implements Watcher {
 	// It is used to monitor read timeout
 	private TimerTask timerTask;
 	private NodeService nodeService;
-//
-//	ZooikeeperNettyConnection(Channel channel, NodeService nodeService) {
-//		this(channel,nodeService, new Session(UUID.randomUUID(), System.currentTimeMillis()));
-//	}
 
-	ZooikeeperNettyConnection(Channel channel, NodeService nodeService, Session session) {
+	CharlatanNettyConnection(Channel channel, NodeService nodeService, Session session) {
 		this.channel = channel;
 		this.closingChannel = false;
 		this.nodeService = nodeService;

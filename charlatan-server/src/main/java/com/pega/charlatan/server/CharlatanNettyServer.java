@@ -26,10 +26,10 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 
-public class ZooikeeperNettyServer {
+public class CharlatanNettyServer {
 
 	public static final int DEFAULT_MAX_SESSION_TIMEOUT = 60000;
-	private static final Logger logger = LoggerFactory.getLogger(ZooikeeperNettyServer.class);
+	private static final Logger logger = LoggerFactory.getLogger(CharlatanNettyServer.class);
 	private final String host;
 	private final int port;
 
@@ -53,9 +53,9 @@ public class ZooikeeperNettyServer {
 	private ThreadFactory threadFactory;
 	private int workerCount;
 
-	private Map<UUID, ZooikeeperNettyConnection> sessions;
+	private Map<UUID, CharlatanNettyConnection> sessions;
 
-	ZooikeeperNettyServer(ZooikeeperServerBuilder builder) {
+	CharlatanNettyServer(CharlatanServerBuilder builder) {
 		this.host = builder.getHost();
 		this.port = builder.getPort();
 		this.secure = builder.isSecure();
@@ -87,7 +87,7 @@ public class ZooikeeperNettyServer {
 		bootstrap.setOption("child.tcpNoDelay", true);
 		// set socket linger to off, so that socket close does not block
 		bootstrap.setOption("child.soLinger", -1);
-		bootstrap.setPipelineFactory(new PipelineFactory(new ZooikeeperChannelHandler()));
+		bootstrap.setPipelineFactory(new PipelineFactory(new CharlatanChannelHandler()));
 
 		nodeService = new NodeServiceImpl(nodeDao, watchService);
 	}
@@ -114,9 +114,9 @@ public class ZooikeeperNettyServer {
 			InetSocketAddress address = new InetSocketAddress(host, port);
 			channel = bootstrap.bind(address);
 
-			logger.info("Started Zooikeeper server on {}:{}", host, port);
+			logger.info("Started Charlatan server on {}:{}", host, port);
 		} else {
-			logger.info("Zooikeeper server is already running");
+			logger.info("Charlatan server is already running");
 		}
 	}
 
@@ -138,7 +138,7 @@ public class ZooikeeperNettyServer {
 				closeFuture.awaitUninterruptibly();
 			}
 		}
-		logger.info("Stopped Zooikeeper server on {}:{}", host, port);
+		logger.info("Stopped Charlatan server on {}:{}", host, port);
 	}
 
 	public synchronized boolean isRunning() {
@@ -150,7 +150,7 @@ public class ZooikeeperNettyServer {
 			List<Session> staleSessions = sessionService.getStaleSessions(System.currentTimeMillis() - maxSessionTimeout );
 
 			for (Session session : staleSessions) {
-				ZooikeeperNettyConnection connection = sessions.get(session.getUuid());
+				CharlatanNettyConnection connection = sessions.get(session.getUuid());
 				if (connection != null) {
 					// This should never happen, stale connection is still present but it wasn't closed by timeout
 					logger.error(String.format("Found stale sessions %d on current server", session.getSessionId()));
@@ -185,7 +185,7 @@ public class ZooikeeperNettyServer {
 
 	;
 
-	class ZooikeeperChannelHandler extends SimpleChannelHandler {
+	class CharlatanChannelHandler extends SimpleChannelHandler {
 
 		@Override
 		public void channelClosed(ChannelHandlerContext ctx, ChannelStateEvent e)
@@ -198,7 +198,7 @@ public class ZooikeeperNettyServer {
 									 ChannelStateEvent e) throws Exception {
 
 			Session session = new Session(UUID.randomUUID(), System.currentTimeMillis());
-			ZooikeeperNettyConnection cnxn = new ZooikeeperNettyConnection(ctx.getChannel(), nodeService, session);
+			CharlatanNettyConnection cnxn = new CharlatanNettyConnection(ctx.getChannel(), nodeService, session);
 			ctx.setAttachment(cnxn);
 
 			sessions.put(session.getUuid(), cnxn);
@@ -210,7 +210,7 @@ public class ZooikeeperNettyServer {
 		@Override
 		public void channelDisconnected(ChannelHandlerContext ctx,
 										ChannelStateEvent e) throws Exception {
-			ZooikeeperNettyConnection cnxn = (ZooikeeperNettyConnection) ctx.getAttachment();
+			CharlatanNettyConnection cnxn = (CharlatanNettyConnection) ctx.getAttachment();
 			if (cnxn != null) {
 				Session session = cnxn.getSession();
 
@@ -229,7 +229,7 @@ public class ZooikeeperNettyServer {
 		@Override
 		public void exceptionCaught(ChannelHandlerContext ctx, ExceptionEvent e)
 				throws Exception {
-			ZooikeeperNettyConnection cnxn = (ZooikeeperNettyConnection) ctx.getAttachment();
+			CharlatanNettyConnection cnxn = (CharlatanNettyConnection) ctx.getAttachment();
 			if (cnxn != null) {
 				cnxn.close();
 			}
@@ -250,7 +250,7 @@ public class ZooikeeperNettyServer {
 		public void messageReceived(ChannelHandlerContext ctx, MessageEvent e)
 				throws Exception {
 			try {
-				ZooikeeperNettyConnection connection = (ZooikeeperNettyConnection) ctx.getAttachment();
+				CharlatanNettyConnection connection = (CharlatanNettyConnection) ctx.getAttachment();
 				synchronized (connection) {
 					processMessage(e, connection);
 				}
@@ -259,7 +259,7 @@ public class ZooikeeperNettyServer {
 			}
 		}
 
-		private void processMessage(MessageEvent e, ZooikeeperNettyConnection cnxn) {
+		private void processMessage(MessageEvent e, CharlatanNettyConnection cnxn) {
 			ChannelBuffer buf = (ChannelBuffer) e.getMessage();
 			cnxn.receiveMessage(buf);
 			sessionService.updateSession(cnxn.getSession());
