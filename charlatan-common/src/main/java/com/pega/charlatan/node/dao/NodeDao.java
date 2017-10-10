@@ -10,13 +10,6 @@ import java.util.List;
  */
 public interface NodeDao {
 
-//NodeDao	/**
-//	 * True if requested path exists
-//	 *
-//	 * @return
-//	 */
-//	boolean exists(Node node);
-
 	/**
 	 * Stores node and node data.
 	 *
