@@ -1,7 +1,0 @@
-
-dependencies {
-
-    compile project(':zooikeeper-common')
-    compile "io.netty:netty:3.10.6.Final"
-
-}

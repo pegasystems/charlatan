@@ -1,6 +1,6 @@
 rootProject.name = projectName
-include 'zooikeeper-common'
-include 'zooikeeper-adapter'
-include 'zooikeeper-dao-sqlite'
-include 'zooikeeper-dao-remote'
-include 'zooikeeper-server'
+include 'charlatan-common'
+include 'charlatan-adapter'
+include 'charlatan-dao-sqlite'
+include 'charlatan-dao-remote'
+include 'charlatan-server'

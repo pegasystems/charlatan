@@ -1,0 +1,7 @@
+
+dependencies {
+
+    compile project(':charlatan-common')
+    compile "io.netty:netty:3.10.6.Final"
+
+}

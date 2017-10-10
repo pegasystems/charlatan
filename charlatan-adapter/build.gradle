@@ -1,0 +1,7 @@
+dependencies {
+
+    compile project(':charlatan-common')
+    
+    compile 'org.reflections:reflections:0.9.10'
+
+}

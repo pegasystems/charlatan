@@ -1,0 +1,7 @@
+dependencies {
+
+    compile project(':charlatan-common')
+    compile "org.xerial:sqlite-jdbc:3.8.11.2"
+
+}
+
