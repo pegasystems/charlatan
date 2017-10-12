@@ -53,15 +53,6 @@ public class NodeDaoRestClient extends NettyClient implements NodeDao {
 	}
 
 	@Override
-	public List<String> getChildren(Node parent) throws RecordNotFoundException {
-		try {
-			return Arrays.asList(sendMessage(HttpMethod.GET, "/nodes/" + encodePath(parent.getPath()) + "/children", String[].class));
-		} catch (IOException e) {
-			throw new DataAccessException("Failed to get children of requested node", e);
-		}
-	}
-
-	@Override
 	public void updateCVersion(String path, int cversion) {
 		try {
 			sendMessage(HttpMethod.PUT, "/nodes/" + encodePath(path) + "?cversion=" + cversion);

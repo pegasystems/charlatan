@@ -20,8 +20,8 @@ and database can play the role of the highly available service. This option was 
 ## Sub-projects 
 Charlatan contains from few sub-projects
 
-Sub-project             |Description
-------------------------|------------ 
+Sub-project              |Description
+-------------------------|------------ 
 [***Charlatan-common***](#charlatan-common)    |Watch management, session management, common dao interfaces.
 [***Charlatan-server***](#charlatan-server)    |Netty based server implementation, Zookeeper messaging protocol implementation.
 [***Charlatan-adapter***](#charlatan-adapter)  |Fake Zookeeper driver, it can be used as a Kafka dependency instead of Zookeeper.jar.

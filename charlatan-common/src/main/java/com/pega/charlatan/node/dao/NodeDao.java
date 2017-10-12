@@ -40,15 +40,6 @@ public interface NodeDao {
 	 */
 	void update(String path, byte[] data, int newVersion, long modificationTime);
 
-	/**
-	 * Returns list of the children node names. Child node name is a relative name to the parent node.
-	 *
-	 * @param parent
-	 * @return
-	 * @throws RecordNotFoundException
-	 */
-	List<String> getChildren(Node parent) throws RecordNotFoundException;
-
 	void updateCVersion(String path, int cversion);
 
 	/**

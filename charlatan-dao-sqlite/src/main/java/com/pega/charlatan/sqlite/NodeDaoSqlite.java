@@ -167,32 +167,6 @@ public class NodeDaoSqlite extends DatabaseConnection implements NodeDao {
 	}
 
 	@Override
-	public List<String> getChildren(Node node) throws RecordNotFoundException {
-		String sql = "SELECT name FROM nodes WHERE fk=?";
-		int key = getNodeKey(node.getParentPath());
-
-		try (Connection c = getConnection()) {
-			try (PreparedStatement ps = prepareStatement(c,sql)) {
-				ps.setInt(1, key);
-
-				ResultSet rs = executeQuery(ps);
-
-				List<String> children = new ArrayList<>();
-				while (rs.next()) {
-					String fullPath = rs.getString("name");
-					String nodeName = fullPath.substring(node.getPath().length() + 1);
-					children.add(nodeName);
-
-				}
-				return children;
-			}
-		} catch (SQLException e) {
-			logger.error("GetChildren error", e);
-			throw new DataAccessException(e);
-		}
-	}
-
-	@Override
 	public void updateCVersion(String path, int cversion) {
 		try (Connection c = getConnection()) {
 			try (PreparedStatement ps = prepareStatement(c,"UPDATE nodes SET cversion=? WHERE name=?")) {
