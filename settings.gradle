@@ -1,6 +1,6 @@
 rootProject.name = projectName
 include 'charlatan-common'
-include 'charlatan-adapter'
-include 'charlatan-dao-sqlite'
-include 'charlatan-dao-remote'
+//include 'charlatan-adapter'
+//include 'charlatan-dao-sqlite'
+//include 'charlatan-dao-remote'
 include 'charlatan-server'
