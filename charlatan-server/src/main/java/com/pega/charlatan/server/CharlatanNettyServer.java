@@ -13,6 +13,7 @@ import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.channel.*;
 import org.jboss.netty.channel.socket.nio.NioServerSocketChannelFactory;
 import org.jboss.netty.channel.socket.nio.NioWorkerPool;
+import org.jboss.netty.handler.codec.frame.LengthFieldBasedFrameDecoder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -178,6 +179,7 @@ public class CharlatanNettyServer {
 		@Override
 		public ChannelPipeline getPipeline() throws Exception {
 			ChannelPipeline pipeline = Channels.pipeline();
+			pipeline.addLast("FrameDecoder", new LengthFieldBasedFrameDecoder(65536, 0, 4, 0, 0));
 			pipeline.addLast("handler", handler);
 			return pipeline;
 		}
