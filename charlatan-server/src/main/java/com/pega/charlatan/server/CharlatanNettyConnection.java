@@ -194,6 +194,7 @@ public class CharlatanNettyConnection implements Watcher {
 					break;
 				case CloseSession:
 					response = processCloseSession();
+					break;
 				default:
 					throw new KeeperException.SystemErrorException();
 			}
