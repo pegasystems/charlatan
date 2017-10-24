@@ -185,8 +185,6 @@ public class CharlatanNettyServer {
 		}
 	}
 
-	;
-
 	class CharlatanChannelHandler extends SimpleChannelHandler {
 
 		@Override
