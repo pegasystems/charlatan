@@ -1,0 +1,7 @@
+.classpath
+.factorypath
+.project
+.settings/
+.gitignore
+.gradle
+build/

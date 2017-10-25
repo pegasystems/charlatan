@@ -18,32 +18,51 @@
 
 package com.pega.charlatan.server;
 
-import com.pega.charlatan.io.Serializable;
-import com.pega.charlatan.io.ZookeeperReader;
-import com.pega.charlatan.io.ZookeeperWriter;
-import com.pega.charlatan.node.service.NodeService;
-import com.pega.charlatan.server.io.*;
-import com.pega.charlatan.server.session.bean.Session;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.util.List;
+import java.util.Random;
+import java.util.Timer;
+import java.util.concurrent.TimeUnit;
+
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.data.Stat;
-import org.jboss.netty.buffer.ChannelBuffer;
-import org.jboss.netty.buffer.ChannelBuffers;
-import org.jboss.netty.channel.Channel;
-import org.jboss.netty.channel.ChannelFutureListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.*;
-import java.nio.ByteBuffer;
-import java.util.List;
-import java.util.Random;
-import java.util.Timer;
-import java.util.TimerTask;
+import com.pega.charlatan.io.Serializable;
+import com.pega.charlatan.io.ZookeeperReader;
+import com.pega.charlatan.io.ZookeeperWriter;
+import com.pega.charlatan.node.service.NodeService;
+import com.pega.charlatan.server.io.ConnectRequest;
+import com.pega.charlatan.server.io.ConnectResponse;
+import com.pega.charlatan.server.io.CreateRequest;
+import com.pega.charlatan.server.io.CreateResponse;
+import com.pega.charlatan.server.io.DeleteRequest;
+import com.pega.charlatan.server.io.ExistRequest;
+import com.pega.charlatan.server.io.ExistResponse;
+import com.pega.charlatan.server.io.GetChildrenRequest;
+import com.pega.charlatan.server.io.GetChildrenResponse;
+import com.pega.charlatan.server.io.GetDataRequest;
+import com.pega.charlatan.server.io.GetDataResponse;
+import com.pega.charlatan.server.io.Response;
+import com.pega.charlatan.server.io.SetDataRequest;
+import com.pega.charlatan.server.io.SetDataResponse;
+import com.pega.charlatan.server.io.SetWatchesRequest;
+import com.pega.charlatan.server.io.WatcherEvent;
+import com.pega.charlatan.server.session.bean.Session;
 
-import static org.jboss.netty.buffer.ChannelBuffers.wrappedBuffer;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
+import io.netty.channel.Channel;
+import io.netty.handler.timeout.IdleStateHandler;
 
 /**
  * Channel wrapper that keeps session specific information like: sessionId, session read timeout.
@@ -64,7 +83,7 @@ public class CharlatanNettyConnection implements Watcher {
 	// True if connect request was processed
 	private boolean initialized;
 	// It is used to monitor read timeout
-	private TimerTask timerTask;
+//	private TimerTask timerTask;
 	private NodeService nodeService;
 
 	CharlatanNettyConnection(Channel channel, NodeService nodeService, Session session) {
@@ -78,9 +97,10 @@ public class CharlatanNettyConnection implements Watcher {
 		return session;
 	}
 
-	public void receiveMessage(ChannelBuffer message) {
+	public void receiveMessage(ByteBuf message) {
 		try {
-			while (message.readable()) {
+			
+			while (message.readableBytes() > 0) {
 
 				session.setLastTimeSeen(System.currentTimeMillis());
 
@@ -99,7 +119,7 @@ public class CharlatanNettyConnection implements Watcher {
 				}
 			}
 		} catch (Exception e) {
-			logger.warn("Closing connection to " + channel.getRemoteAddress(), e);
+			logger.warn("Closing connection to " + channel.remoteAddress(), e);
 			close();
 		}
 	}
@@ -121,10 +141,11 @@ public class CharlatanNettyConnection implements Watcher {
 				random.nextBytes(password);
 
 				session.setSessionId(sessionId);
-				setTimeout(connectRequest.getTimeOut());
+				session.setTimeout(Math.min(connectRequest.getTimeOut(), DEFAULT_MAX_SESSION_TIMEOUT));
+				
+				channel.pipeline().replace("IdleHandler", "IdleHandler", new IdleStateHandler(connectRequest.getTimeOut(), 0, 0, TimeUnit.MILLISECONDS));
 
 				this.zid = connectRequest.getZxid();
-
 
 				ConnectResponse connectResponse = new ConnectResponse(connectRequest.getProtocolVersion(),
 						session.getTimeout(),
@@ -230,17 +251,8 @@ public class CharlatanNettyConnection implements Watcher {
 		closingChannel = true;
 
 		try {
-			if (timerTask != null) {
-				timerTask.cancel();
-			}
-		}
-		catch( Exception e ){
-			logger.warn(e.getMessage());
-		}
-
-		try {
 			if (channel.isOpen()) {
-				channel.write(ChannelBuffers.EMPTY_BUFFER).addListener(ChannelFutureListener.CLOSE);
+				channel.close();
 			}
 		}
 		catch( Exception e){
@@ -352,8 +364,8 @@ public class CharlatanNettyConnection implements Watcher {
 
 			ByteBuffer buffer = ByteBuffer.wrap(baos.toByteArray());
 			buffer.putInt(buffer.remaining() - 4).rewind();
-
-			channel.write(wrappedBuffer(buffer));
+			
+			channel.writeAndFlush(Unpooled.wrappedBuffer(buffer));
 		} catch (IOException e1) {
 			close();
 		}
@@ -367,29 +379,7 @@ public class CharlatanNettyConnection implements Watcher {
 		ByteBuffer buffer = ByteBuffer.wrap(baos.toByteArray());
 		buffer.putInt(buffer.remaining() - 4).rewind();
 
-		channel.write(wrappedBuffer(buffer));
-	}
-
-	private void setTimeout(int timeout) {
-		session.setTimeout(Math.min(timeout, DEFAULT_MAX_SESSION_TIMEOUT));
-
-		//start checking the timeout
-		if (timerTask == null && session.getTimeout() > 0 && !closingChannel) {
-			timerTask = new TimerTask() {
-				@Override
-				public void run() {
-					try {
-						if ((session.getLastTimeSeen() + session.getTimeout()) < System.currentTimeMillis()) {
-							logger.info("Read timeout on " + channel.getRemoteAddress());
-							close();
-						}
-					} catch (Exception e) {
-						logger.error("Unable to check session timeout", e);
-					}
-				}
-			};
-			TIMER.schedule(timerTask, timeout, 1000);
-		}
+		channel.writeAndFlush(Unpooled.wrappedBuffer(buffer));
 	}
 }
 

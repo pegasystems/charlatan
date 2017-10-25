@@ -1,23 +1,5 @@
 package com.pega.charlatan.server;
 
-import com.pega.charlatan.node.dao.NodeDao;
-import com.pega.charlatan.node.service.NodeService;
-import com.pega.charlatan.node.service.NodeServiceImpl;
-import com.pega.charlatan.server.session.bean.Session;
-import com.pega.charlatan.server.session.service.SessionService;
-import com.pega.charlatan.watches.service.WatchService;
-import org.apache.zookeeper.CreateMode;
-import org.apache.zookeeper.KeeperException;
-import org.jboss.netty.bootstrap.ServerBootstrap;
-import org.jboss.netty.buffer.ChannelBuffer;
-import org.jboss.netty.channel.*;
-import org.jboss.netty.channel.socket.nio.NioServerSocketChannelFactory;
-import org.jboss.netty.channel.socket.nio.NioWorkerPool;
-import org.jboss.netty.handler.codec.frame.LengthFieldBasedFrameDecoder;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.net.InetSocketAddress;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -26,6 +8,37 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
+
+import org.apache.zookeeper.CreateMode;
+import org.apache.zookeeper.KeeperException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.pega.charlatan.node.dao.NodeDao;
+import com.pega.charlatan.node.service.NodeService;
+import com.pega.charlatan.node.service.NodeServiceImpl;
+import com.pega.charlatan.server.session.bean.Session;
+import com.pega.charlatan.server.session.service.SessionService;
+import com.pega.charlatan.watches.service.WatchService;
+
+import io.netty.bootstrap.ServerBootstrap;
+import io.netty.buffer.ByteBuf;
+import io.netty.channel.Channel;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelInitializer;
+import io.netty.channel.ChannelOption;
+import io.netty.channel.EventLoopGroup;
+import io.netty.channel.SimpleChannelInboundHandler;
+import io.netty.channel.nio.NioEventLoopGroup;
+import io.netty.channel.socket.SocketChannel;
+import io.netty.channel.socket.nio.NioServerSocketChannel;
+import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
+import io.netty.handler.timeout.IdleState;
+import io.netty.handler.timeout.IdleStateEvent;
+import io.netty.handler.timeout.IdleStateHandler;
+import io.netty.util.Attribute;
+import io.netty.util.AttributeKey;
+import io.netty.util.concurrent.Future;
 
 public class CharlatanNettyServer {
 
@@ -77,18 +90,28 @@ public class CharlatanNettyServer {
 		this.sessionService = builder.getSessionService();
 		this.sessionMonitorService = Executors.newSingleThreadScheduledExecutor(threadFactory);
 
-		bootstrap = new ServerBootstrap(
-				new NioServerSocketChannelFactory(
-						Executors.newCachedThreadPool(),
-						new NioWorkerPool(Executors.newCachedThreadPool(threadFactory), workerCount)));
-
-		// parent channel
-		bootstrap.setOption("reuseAddress", true);
-		// child channels
-		bootstrap.setOption("child.tcpNoDelay", true);
+		EventLoopGroup bossGroup = new NioEventLoopGroup();
+	    EventLoopGroup workerGroup = new NioEventLoopGroup(workerCount, threadFactory);
+		
+		bootstrap = new ServerBootstrap();
+		bootstrap.group(bossGroup, workerGroup);
+		bootstrap.channel(NioServerSocketChannel.class);
+		
+		bootstrap.option(ChannelOption.SO_REUSEADDR, true);
+		bootstrap.childOption(ChannelOption.TCP_NODELAY, true);
 		// set socket linger to off, so that socket close does not block
-		bootstrap.setOption("child.soLinger", -1);
-		bootstrap.setPipelineFactory(new PipelineFactory(new CharlatanChannelHandler()));
+		bootstrap.childOption(ChannelOption.SO_LINGER, -1);
+
+		bootstrap.childHandler(new ChannelInitializer<SocketChannel>() {
+			@Override
+			protected void initChannel(SocketChannel channel) throws Exception {
+				logger.info("Initializing socket channel for connection from remote address [{}]", channel.remoteAddress());
+				channel.pipeline()
+					.addLast("IdleHandler", new IdleStateHandler(DEFAULT_MAX_SESSION_TIMEOUT, 0, 0, TimeUnit.MILLISECONDS))
+					.addLast("FrameDecoder", new LengthFieldBasedFrameDecoder(65536, 0, 4, 0, 0))
+					.addLast("handler", new CharlatanChannelHandler());
+			}
+		});
 
 		nodeService = new NodeServiceImpl(nodeDao, watchService);
 	}
@@ -112,8 +135,11 @@ public class CharlatanNettyServer {
 				}
 			}, maxSessionTimeout / 2, maxSessionTimeout / 2, TimeUnit.MILLISECONDS);
 
-			InetSocketAddress address = new InetSocketAddress(host, port);
-			channel = bootstrap.bind(address);
+			try {
+				channel = bootstrap.bind(host, port).sync().channel();
+			} catch (InterruptedException e) {
+				logger.error("Interrupted");
+			}
 
 			logger.info("Started Charlatan server on {}:{}", host, port);
 		} else {
@@ -122,28 +148,29 @@ public class CharlatanNettyServer {
 	}
 
 	public synchronized void stop() {
-		ChannelFuture closeFuture = null;
-		try {
-			if (isRunning()) {
-				channel.unbind();
-				closeFuture = channel.close();
+		if (isRunning()) {
+			Future<?> bossGroupShutdownFuture = bootstrap.group().shutdownGracefully();
+			Future<?> childGroupShutdownFuture = bootstrap.childGroup().shutdownGracefully();
+			
+			try {
+				bossGroupShutdownFuture.await();
+			} catch(InterruptedException ex) {
+				logger.warn("Interrupted waiting for netty boss event loop group shutdown");
 			}
-			if (bootstrap != null) {
-				bootstrap.releaseExternalResources();
-			}
-
-			sessionMonitorService.shutdown();
-		} finally {
-			channel = null;
-			if (closeFuture != null) {
-				closeFuture.awaitUninterruptibly();
+			
+			try {
+				childGroupShutdownFuture.await();
+			} catch(InterruptedException ex) {
+				logger.warn("Interrupted waiting for netty worker event loop group shutdown");
 			}
 		}
+		sessionMonitorService.shutdown();
+
 		logger.info("Stopped Charlatan server on {}:{}", host, port);
 	}
 
 	public synchronized boolean isRunning() {
-		return channel != null && channel.isOpen() && channel.isBound();
+		return channel != null && channel.isOpen();
 	}
 
 	private void invalidateStaleSessions() {
@@ -167,50 +194,34 @@ public class CharlatanNettyServer {
 			logger.warn("Failed to invalidate stale brokers", e);
 		}
 	}
-
-
-	class PipelineFactory implements ChannelPipelineFactory {
-		private final ChannelHandler handler;
-
-		public PipelineFactory(ChannelHandler handler) {
-			this.handler = handler;
-		}
-
+	
+	class CharlatanChannelHandler extends  SimpleChannelInboundHandler<ByteBuf> {
+		
+		private static final String CONNECTION_ATTR = "connection";
+		
+		private final AttributeKey<CharlatanNettyConnection> CONNECTION = AttributeKey.valueOf("connection");
+		
 		@Override
-		public ChannelPipeline getPipeline() throws Exception {
-			ChannelPipeline pipeline = Channels.pipeline();
-			pipeline.addLast("FrameDecoder", new LengthFieldBasedFrameDecoder(65536, 0, 4, 0, 0));
-			pipeline.addLast("handler", handler);
-			return pipeline;
-		}
-	}
-
-	class CharlatanChannelHandler extends SimpleChannelHandler {
-
-		@Override
-		public void channelClosed(ChannelHandlerContext ctx, ChannelStateEvent e)
-				throws Exception {
-			logger.debug("Closed " + ctx.getChannel().getRemoteAddress());
-		}
-
-		@Override
-		public void channelConnected(ChannelHandlerContext ctx,
-									 ChannelStateEvent e) throws Exception {
-
+		public void channelActive(ChannelHandlerContext ctx) throws Exception {
+			super.channelActive(ctx);
+			
 			Session session = new Session(UUID.randomUUID(), System.currentTimeMillis());
-			CharlatanNettyConnection cnxn = new CharlatanNettyConnection(ctx.getChannel(), nodeService, session);
-			ctx.setAttachment(cnxn);
+			CharlatanNettyConnection cnxn = new CharlatanNettyConnection(ctx.channel(), nodeService, session);
+			Attribute<CharlatanNettyConnection> attr = ctx.attr(CONNECTION);
+			attr.set(cnxn);
 
 			sessions.put(session.getUuid(), cnxn);
 			sessionService.registerSession(id, session);
 
-			logger.debug("Connected " + ctx.getChannel().getRemoteAddress());
+			logger.info("Connection established from address [{}]", ctx.channel().remoteAddress());
+			
 		}
 
 		@Override
-		public void channelDisconnected(ChannelHandlerContext ctx,
-										ChannelStateEvent e) throws Exception {
-			CharlatanNettyConnection cnxn = (CharlatanNettyConnection) ctx.getAttachment();
+		public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+			super.channelInactive(ctx);
+			Attribute<CharlatanNettyConnection> attr = ctx.attr(CONNECTION);
+			CharlatanNettyConnection cnxn = attr.get();
 			if (cnxn != null) {
 				Session session = cnxn.getSession();
 
@@ -223,46 +234,36 @@ public class CharlatanNettyServer {
 				sessions.remove(session.getUuid());
 			}
 
-			logger.debug("Disconnected " + ctx.getChannel().getRemoteAddress());
+			logger.info("Connection disconnected from address [{}]", ctx.channel().remoteAddress());
 		}
 
 		@Override
-		public void exceptionCaught(ChannelHandlerContext ctx, ExceptionEvent e)
-				throws Exception {
-			CharlatanNettyConnection cnxn = (CharlatanNettyConnection) ctx.getAttachment();
+		public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+			super.exceptionCaught(ctx, cause);
+			Attribute<CharlatanNettyConnection> attr = ctx.attr(CONNECTION);
+			CharlatanNettyConnection cnxn = attr.get();
 			if (cnxn != null) {
 				cnxn.close();
 			}
 
-			logger.error("Exception " + ctx.getChannel().getRemoteAddress(), e.getCause());
+			logger.error("Exception " + ctx.channel().remoteAddress(), cause.getCause());
 		}
 
 		@Override
-		public void handleUpstream(ChannelHandlerContext ctx, ChannelEvent e) throws Exception {
-			if (e instanceof ChannelStateEvent &&
-					((ChannelStateEvent) e).getState() != ChannelState.INTEREST_OPS) {
-				logger.error(e.toString());
-			}
-			super.handleUpstream(ctx, e);
-		}
-
-		@Override
-		public void messageReceived(ChannelHandlerContext ctx, MessageEvent e)
-				throws Exception {
-			try {
-				CharlatanNettyConnection connection = (CharlatanNettyConnection) ctx.getAttachment();
-				synchronized (connection) {
-					processMessage(e, connection);
-				}
-			} catch (Exception ex) {
-				throw ex;
-			}
-		}
-
-		private void processMessage(MessageEvent e, CharlatanNettyConnection cnxn) {
-			ChannelBuffer buf = (ChannelBuffer) e.getMessage();
-			cnxn.receiveMessage(buf);
+		protected void channelRead0(ChannelHandlerContext ctx, ByteBuf msg) throws Exception {
+			logger.debug("Received [{}] message bytes from address [{}]", msg.readableBytes(), ctx.channel().remoteAddress());
+			Attribute<CharlatanNettyConnection> attr = ctx.attr(CONNECTION);
+			CharlatanNettyConnection cnxn = attr.get();
+			cnxn.receiveMessage(msg);
 			sessionService.updateSession(cnxn.getSession());
+		}
+
+		@Override
+		public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
+			if (evt instanceof IdleStateEvent && ((IdleStateEvent)evt).state() == IdleState.READER_IDLE) {
+				logger.info("Recieved inactivity event from netty stack for remote address [{}]", ctx.channel().remoteAddress());
+				ctx.close();
+			}
 		}
 	}
 }
