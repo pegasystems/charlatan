@@ -1,6 +1,6 @@
 package com.pega.charlatan.watches.service;
 
-import org.apache.zookeeper.Watcher;
+import com.pega.charlatan.watches.bean.Watcher;
 
 import java.util.Set;
 
@@ -20,8 +20,8 @@ public interface WatchCache {
 	 * @param path  event path
 	 * @return may be empty set but must not be null
 	 */
-	Set<Watcher> materialize(Watcher.Event.KeeperState state,
-							 Watcher.Event.EventType type, String path);
+	Set<Watcher> materialize(Watcher.Event.State state,
+							 Watcher.Event.Type type, String path);
 
 	/**
 	 * Register new "exist" watch for requested path. The watch will be triggered by created event.

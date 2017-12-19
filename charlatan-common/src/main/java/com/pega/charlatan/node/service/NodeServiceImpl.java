@@ -4,9 +4,11 @@ import com.pega.charlatan.node.bean.Node;
 import com.pega.charlatan.node.dao.NodeDao;
 import com.pega.charlatan.node.dao.RecordNotFoundException;
 import com.pega.charlatan.watches.service.WatchService;
-import org.apache.zookeeper.*;
-import org.apache.zookeeper.data.ACL;
-import org.apache.zookeeper.data.Stat;
+import com.pega.charlatan.node.bean.CreateMode;
+import com.pega.charlatan.utils.CharlatanException;
+import com.pega.charlatan.watches.bean.WatchedEvent;
+import com.pega.charlatan.watches.bean.Watcher;
+import com.pega.charlatan.node.bean.NodeState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -16,11 +18,8 @@ import java.util.List;
  * Created by natalia on 7/19/17.
  */
 public class NodeServiceImpl implements NodeService {
-
-//	protected final WatchesNotifier watchesNotifier;
 	private final NodeDao zkDatabase;
 	private final WatchService watchService;
-//	private final WatchCache watchCache;
 
 	private Logger logger = LoggerFactory.getLogger(NodeServiceImpl.class.getName());
 
@@ -36,17 +35,17 @@ public class NodeServiceImpl implements NodeService {
 	@Override
 	public void close(long session) {
 		removeEphemeralSessionNodes(session);
-		processEvent(new WatchedEvent(Watcher.Event.EventType.None, Watcher.Event.KeeperState.Disconnected, null));
+		processEvent(new WatchedEvent(Watcher.Event.Type.None, Watcher.Event.State.Disconnected, null));
 	}
 
 	@Override
-	public String create(long session, String path, byte[] data, List<ACL> acl, CreateMode createMode) throws KeeperException {
+	public String create(long session, String path, byte[] data, CreateMode createMode) throws CharlatanException {
 		final Node node = new Node(path, data, createMode);
 
 		try {
 			if (!node.isRoot()) {
 				Node parent = zkDatabase.get(node.getParentPath());
-				int cversion = parent.getStat().getCversion();
+				int cversion = parent.getState().getCversion();
 
 				if (createMode.isSequential()) {
 					// The number of changes to the children of this znode.
@@ -61,17 +60,17 @@ public class NodeServiceImpl implements NodeService {
 			}
 
 			long now = System.currentTimeMillis();
-			node.getStat().setCtime(now);
-			node.getStat().setMtime(now);
+			node.getState().setCtime(now);
+			node.getState().setMtime(now);
 
 			if (zkDatabase.create(session, node)) {
 				sendNewNodeEvents(node);
 				return node.getPath();
 			}
 
-			throw new KeeperException.NodeExistsException();
+			throw new CharlatanException.NodeExistsException();
 		} catch (RecordNotFoundException e) {
-			throw new KeeperException.NoNodeException(node.getParentPath());
+			throw new CharlatanException.NoNodeException(node.getParentPath());
 		}
 	}
 
@@ -83,7 +82,7 @@ public class NodeServiceImpl implements NodeService {
 				delete(ephemeralPath, -1);
 				logger.info(String.format("Invalidating session: ephemeral node deleted '%s'", ephemeralPath));
 
-			} catch (KeeperException e) {
+			} catch (CharlatanException e) {
 				logger.warn(String.format("Failed to remove session ephemeral node '%s'. This probably indicates that node was removed in meantime by different broker", ephemeralPath), e);
 			}
 		}
@@ -96,8 +95,8 @@ public class NodeServiceImpl implements NodeService {
 	 * @param node
 	 */
 	private void sendNewNodeEvents(Node node) {
-		processEvent(new WatchedEvent(Watcher.Event.EventType.NodeCreated, Watcher.Event.KeeperState.SyncConnected, node.getPath()));
-		processEvent(new WatchedEvent(Watcher.Event.EventType.NodeChildrenChanged, Watcher.Event.KeeperState.SyncConnected, node.getParentPath()));
+		processEvent(new WatchedEvent(Watcher.Event.Type.NodeCreated, Watcher.Event.State.SyncConnected, node.getPath()));
+		processEvent(new WatchedEvent(Watcher.Event.Type.NodeChildrenChanged, Watcher.Event.State.SyncConnected, node.getParentPath()));
 	}
 
 	/**
@@ -114,108 +113,86 @@ public class NodeServiceImpl implements NodeService {
 	 *
 	 * @param path
 	 * @param version
-	 * @throws KeeperException
+	 * @throws CharlatanException
 	 */
 	@Override
-	public void delete(String path, int version) throws KeeperException {
+	public void delete(String path, int version) throws CharlatanException {
 		try {
 			Node node = zkDatabase.get(path);
 
-			if (version >= 0 && node.getStat().getVersion() != version) {
-				throw new KeeperException.BadVersionException(path);
+			if (version >= 0 && node.getState().getVersion() != version) {
+				throw new CharlatanException.BadVersionException(path);
 			}
 
 			if (node.getChildren() != null && node.getChildren().size() > 0) {
-				throw new KeeperException.NotEmptyException(path);
+				throw new CharlatanException.NotEmptyException(path);
 			}
 
 			if (zkDatabase.delete(node)) {
 
-				processEvent(new WatchedEvent(Watcher.Event.EventType.NodeDeleted, Watcher.Event.KeeperState.SyncConnected, path));
-				processEvent(new WatchedEvent(Watcher.Event.EventType.NodeChildrenChanged, Watcher.Event.KeeperState.SyncConnected, node.getParentPath()));
+				processEvent(new WatchedEvent(Watcher.Event.Type.NodeDeleted, Watcher.Event.State.SyncConnected, path));
+				processEvent(new WatchedEvent(Watcher.Event.Type.NodeChildrenChanged, Watcher.Event.State.SyncConnected, node.getParentPath()));
 			}
 			//node was modificated during the deletion process
 			else {
-				throw new KeeperException.BadVersionException(path);
+				throw new CharlatanException.BadVersionException(path);
 			}
 		} catch (RecordNotFoundException r) {
-			throw new KeeperException.NoNodeException(path);
+			throw new CharlatanException.NoNodeException(path);
 		}
 	}
 
 	@Override
-	public List<String> getChildren(String path, Watcher watcher) throws KeeperException {
-		try {
-
-			Node node = zkDatabase.get(path);
-
-			if (watcher != null) {
-				watchService.registerWatch(watcher, Watcher.WatcherType.Children, path);
-			}
-
-			return node.getChildren();
-		} catch (RecordNotFoundException e) {
-			throw new KeeperException.NoNodeException(path);
-		}
-	}
-
-	@Override
-	public byte[] getData(String path, Watcher watcher, Stat stat) throws KeeperException {
+	public Node getNode(String path, Watcher watcher, Watcher.Type watchType) throws CharlatanException {
 		Node node = getNode(path);
 
-		if (stat != null) {
-			stat.loadFrom(node.getStat());
-		}
-
 		if (watcher != null) {
-			watchService.registerWatch(watcher, Watcher.WatcherType.Data, path);
+			watchService.registerWatch(watcher, watchType, path);
 		}
-		return node.getData();
+		return node;
 	}
 
 
-	private Node getNode(String path) throws KeeperException.NoNodeException {
+	private Node getNode(String path) throws CharlatanException.NoNodeException {
 		try {
 			return zkDatabase.get(path);
 		} catch (RecordNotFoundException e) {
-			throw new KeeperException.NoNodeException(path);
+			throw new CharlatanException.NoNodeException(path);
 		}
 	}
 
 	@Override
-	public Stat setData(String path, byte[] data, int version) throws KeeperException {
-
-
+	public NodeState setData(String path, byte[] data, int version) throws CharlatanException {
 		Node node = getNode(path);
 
-		if (version >= 0 && node.getStat().getVersion() != version) {
-			throw new KeeperException.BadVersionException(path);
+		if (version >= 0 && node.getState().getVersion() != version) {
+			throw new CharlatanException.BadVersionException(path);
 		}
 
 		zkDatabase.update(path, data, version + 1, System.currentTimeMillis());
 
 		node = getNode(path);
 
-		processEvent(new WatchedEvent(Watcher.Event.EventType.NodeDataChanged, Watcher.Event.KeeperState.SyncConnected, path));
+		processEvent(new WatchedEvent(Watcher.Event.Type.NodeDataChanged, Watcher.Event.State.SyncConnected, path));
 
-		return new Stat(node.getStat());
+		return node.getState();
 	}
 
 	@Override
-	public Stat exists(String path, Watcher watcher) {
-		Stat stat = null;
+	public NodeState exists(String path, Watcher watcher) {
+		NodeState stat = null;
 		try {
 			Node node = zkDatabase.get(path);
-			stat = new Stat(node.getStat());
+			stat = node.getState();
 
 		} catch (RecordNotFoundException e) {
 		}
 
 		if (watcher != null) {
 			if (stat != null) {
-				watchService.registerWatch(watcher, Watcher.WatcherType.Data, path);
+				watchService.registerWatch(watcher, Watcher.Type.Data, path);
 			} else {
-				watchService.registerWatch(watcher, Watcher.WatcherType.Exist, path);
+				watchService.registerWatch(watcher, Watcher.Type.Exist, path);
 			}
 		}
 
@@ -226,19 +203,19 @@ public class NodeServiceImpl implements NodeService {
 	public void registerWatch(Watcher watcher, List<String> dataWatches, List<String> childWatches, List<String> existWatches) {
 		if (dataWatches != null) {
 			for (String dataWatch : childWatches) {
-				watchService.registerWatch(watcher, Watcher.WatcherType.Data, dataWatch);
+				watchService.registerWatch(watcher, Watcher.Type.Data, dataWatch);
 			}
 		}
 
 		if (existWatches != null) {
 			for (String childWatch : childWatches) {
-				watchService.registerWatch(watcher, Watcher.WatcherType.Children, childWatch);
+				watchService.registerWatch(watcher, Watcher.Type.Children, childWatch);
 			}
 		}
 
 		if (childWatches != null) {
 			for (String existWatch : childWatches) {
-				watchService.registerWatch(watcher, Watcher.WatcherType.Exist, existWatch);
+				watchService.registerWatch(watcher, Watcher.Type.Exist, existWatch);
 			}
 		}
 

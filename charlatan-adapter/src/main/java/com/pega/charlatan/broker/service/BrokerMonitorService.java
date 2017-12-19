@@ -1,10 +1,10 @@
 package com.pega.charlatan.broker.service;
 
-import com.pega.charlatan.node.service.NodeService;
 import com.pega.charlatan.server.session.bean.Session;
 import com.pega.charlatan.server.session.dao.SessionDao;
 import com.pega.charlatan.server.session.service.SessionServiceImpl;
 import com.pega.charlatan.utils.NamedThreadFactory;
+import org.apache.zookeeper.ZooKeeper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -22,15 +22,15 @@ public class BrokerMonitorService extends SessionServiceImpl{
 
 	private final ScheduledExecutorService brokerInfoUpdater;
 	private final ScheduledExecutorService brokersChecker;
-	private final NodeService nodeService;
+	private final ZooKeeper zooKeeper;
 	private int brokerId;
 	private Session session;
 	private long lastSeen;
 	private State state;
 
-	public BrokerMonitorService(Session session, SessionDao sessionDao, NodeService nodeService) {
+	public BrokerMonitorService(Session session, SessionDao sessionDao, ZooKeeper zooKeeper) {
 		super(sessionDao);
-		this.nodeService = nodeService;
+		this.zooKeeper = zooKeeper;
 		this.session = session;
 
 		this.brokerInfoUpdater = Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("BrokerMonitor"));
@@ -50,7 +50,7 @@ public class BrokerMonitorService extends SessionServiceImpl{
 				} else {
 					logger.info(String.format("Found stale session %d, invalidating the session", staleSession.getSessionId()));
 
-					nodeService.removeEphemeralSessionNodes(staleSession.getSessionId());
+					zooKeeper.removeEphemeralSessionNodes(staleSession.getSessionId());
 
 					// Delete broker session info only after session ephemeral nodes are removed.
 					deleteSession(staleSession.getUuid());

@@ -21,14 +21,15 @@ package com.pega.charlatan.server;
 import com.pega.charlatan.io.Serializable;
 import com.pega.charlatan.io.ZookeeperReader;
 import com.pega.charlatan.io.ZookeeperWriter;
+import com.pega.charlatan.node.bean.Node;
 import com.pega.charlatan.node.service.NodeService;
 import com.pega.charlatan.server.io.*;
 import com.pega.charlatan.server.session.bean.Session;
-import org.apache.zookeeper.CreateMode;
-import org.apache.zookeeper.KeeperException;
-import org.apache.zookeeper.WatchedEvent;
-import org.apache.zookeeper.Watcher;
-import org.apache.zookeeper.data.Stat;
+import com.pega.charlatan.node.bean.CreateMode;
+import com.pega.charlatan.utils.CharlatanException;
+import com.pega.charlatan.watches.bean.WatchedEvent;
+import com.pega.charlatan.watches.bean.Watcher;
+import com.pega.charlatan.node.bean.NodeState;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.buffer.ChannelBuffers;
 import org.jboss.netty.channel.Channel;
@@ -148,7 +149,7 @@ public class CharlatanNettyConnection implements Watcher {
 	}
 
 	private void processPacket(ByteBuffer bb) {
-		KeeperException.Code errCode = KeeperException.Code.OK;
+		CharlatanException.Code errCode = CharlatanException.Code.OK;
 		Response response = null;
 		int transactionId = -1;
 		RequestType requestType = null;
@@ -196,12 +197,12 @@ public class CharlatanNettyConnection implements Watcher {
 					response = processCloseSession();
 					break;
 				default:
-					throw new KeeperException.SystemErrorException();
+					throw new CharlatanException.SystemErrorException();
 			}
 		} catch (IOException e) {
 			logger.error("Unable to process request", e);
-			errCode = KeeperException.Code.MARSHALLINGERROR;
-		} catch (KeeperException e) {
+			errCode = CharlatanException.Code.MARSHALLINGERROR;
+		} catch (CharlatanException e) {
 			errCode = e.code();
 		}
 
@@ -264,65 +265,67 @@ public class CharlatanNettyConnection implements Watcher {
 		return new Response();
 	}
 
-	private Response processExistsRequest(ZookeeperReader reader) throws IOException, KeeperException.NoNodeException {
+	private Response processExistsRequest(ZookeeperReader reader) throws IOException, CharlatanException.NoNodeException {
 		ExistRequest existRequest = new ExistRequest();
 		existRequest.deserialize(reader);
 
-		Stat stat = nodeService.exists(existRequest.getPath(), existRequest.isWatch() ? this : null);
+		NodeState state = nodeService.exists(existRequest.getPath(), existRequest.isWatch() ? this : null);
 
 		logger.debug(existRequest.toString());
 
-		if (stat == null) {
-			throw new KeeperException.NoNodeException(existRequest.getPath());
+		if (state == null) {
+			throw new CharlatanException.NoNodeException(existRequest.getPath());
 		}
 
-		return new ExistResponse(stat);
+		return new ExistResponse(state);
 	}
 
-	private Response processCreateRequest(ZookeeperReader reader) throws IOException, KeeperException {
+	private Response processCreateRequest(ZookeeperReader reader) throws IOException, CharlatanException {
 		CreateRequest createRequest = new CreateRequest();
 		createRequest.deserialize(reader);
 
 		logger.debug(createRequest.toString());
-		String nodePath = nodeService.create(session.getSessionId(), createRequest.getPath(), createRequest.getData(), createRequest.getAcl(), CreateMode.fromFlag(createRequest.getFlags()));
+		String nodePath = nodeService.create(session.getSessionId(), createRequest.getPath(), createRequest.getData(), CreateMode.fromFlag(createRequest.getFlags()));
 
 		return new CreateResponse(nodePath);
 	}
 
-	private Response processGetDataRequest(ZookeeperReader reader) throws IOException, KeeperException {
+	private Response processGetDataRequest(ZookeeperReader reader) throws IOException, CharlatanException {
 		GetDataRequest getDataRequest = new GetDataRequest();
 		getDataRequest.deserialize(reader);
 
-		Stat stat = new Stat();
-		byte[] data = nodeService.getData(getDataRequest.getPath(), getDataRequest.isWatch() ? this : null, stat);
+		Node node = nodeService.getNode(getDataRequest.getPath(), getDataRequest.isWatch() ? this : null, Type.Data);
+
+		byte[] data = node.getData();
+		NodeState state = node.getState();
 
 		logger.debug(getDataRequest.toString());
 
 		GetDataResponse getDataResponse = new GetDataResponse();
-		getDataResponse.setStat(stat);
+		getDataResponse.setNodeState(state);
 		getDataResponse.setData(data);
 		return getDataResponse;
 	}
 
 
-	private Response processSetDataRequest(ZookeeperReader reader) throws IOException, KeeperException {
+	private Response processSetDataRequest(ZookeeperReader reader) throws IOException, CharlatanException {
 		SetDataRequest setDataRequest = new SetDataRequest();
 		setDataRequest.deserialize(reader);
 		logger.debug(setDataRequest.toString());
-		Stat stat = nodeService.setData(setDataRequest.getPath(), setDataRequest.getData(), setDataRequest.getVersion());
-		return new SetDataResponse(stat);
+		NodeState state = nodeService.setData(setDataRequest.getPath(), setDataRequest.getData(), setDataRequest.getVersion());
+		return new SetDataResponse(state);
 	}
 
-	private Response processGetChildrenRequest(ZookeeperReader reader) throws IOException, KeeperException {
+	private Response processGetChildrenRequest(ZookeeperReader reader) throws IOException, CharlatanException {
 		GetChildrenRequest getChildrenRequest = new GetChildrenRequest();
 		getChildrenRequest.deserialize(reader);
 		logger.debug(getChildrenRequest.toString());
 		boolean watch = getChildrenRequest.isWatch();
-		List<String> children = nodeService.getChildren(getChildrenRequest.getPath(), watch ? this : null);
-		return new GetChildrenResponse(children);
+		Node node = nodeService.getNode(getChildrenRequest.getPath(), watch ? this : null, Watcher.Type.Children);
+		return new GetChildrenResponse(node.getChildren());
 	}
 
-	private Response processDeleteRequest(ZookeeperReader reader) throws IOException, KeeperException {
+	private Response processDeleteRequest(ZookeeperReader reader) throws IOException, CharlatanException {
 		DeleteRequest deleteRequest = new DeleteRequest();
 		deleteRequest.deserialize(reader);
 		nodeService.delete(deleteRequest.getPath(), deleteRequest.getVersion());
@@ -338,7 +341,7 @@ public class CharlatanNettyConnection implements Watcher {
 	@Override
 	public void process(WatchedEvent event) {
 		// Convert WatchedEvent to a type that can be sent over the wire
-		WatcherEvent e = new WatcherEvent(event.getType().getIntValue(), event.getState().getIntValue(), event.getPath());
+		WatcherEvent e = new WatcherEvent(event.getType().getCode(), event.getState().getCode(), event.getPath());
 		e.setTransactionId(-1);
 		e.setZid(-1l);
 		e.setErrorCode(0);

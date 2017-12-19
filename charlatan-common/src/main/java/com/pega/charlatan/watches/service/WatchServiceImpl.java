@@ -2,8 +2,8 @@ package com.pega.charlatan.watches.service;
 
 import com.pega.charlatan.node.bean.NodeUpdate;
 import com.pega.charlatan.watches.dao.NodeUpdateDao;
-import org.apache.zookeeper.WatchedEvent;
-import org.apache.zookeeper.Watcher;
+import com.pega.charlatan.watches.bean.WatchedEvent;
+import com.pega.charlatan.watches.bean.Watcher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -76,7 +76,7 @@ public class WatchServiceImpl extends WatchService {
 			for (NodeUpdate update : updates) {
 				if (!latestNodeUpdates.contains(update)) {
 					logger.info("Processing update " + update);
-					WatchedEvent event = new WatchedEvent(update.getEventType(), Watcher.Event.KeeperState.SyncConnected, update.getPath());
+					WatchedEvent event = new WatchedEvent(update.getType(), Watcher.Event.State.SyncConnected, update.getPath());
 					processRemoteWatchedEvent(event);
 
 					if (update.getTimestamp() > latestTimestamp) {

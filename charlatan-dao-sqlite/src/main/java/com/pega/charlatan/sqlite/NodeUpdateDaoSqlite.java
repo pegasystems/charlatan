@@ -3,7 +3,7 @@ package com.pega.charlatan.sqlite;
 import com.pega.charlatan.node.bean.NodeUpdate;
 import com.pega.charlatan.node.dao.DataAccessException;
 import com.pega.charlatan.watches.dao.NodeUpdateDao;
-import org.apache.zookeeper.Watcher;
+import com.pega.charlatan.watches.bean.Watcher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,7 +27,7 @@ public class NodeUpdateDaoSqlite extends DatabaseConnection implements NodeUpdat
 		try (Connection c = getConnection()) {
 			try (PreparedStatement ps = prepareStatement(c, sql)) {
 
-				ps.setString(1, update.getEventType().name());
+				ps.setString(1, update.getType().name());
 				ps.setString(2, update.getPath());
 				ps.setInt(3, update.getEmitterId());
 				ps.setLong(4, System.currentTimeMillis());
@@ -58,7 +58,7 @@ public class NodeUpdateDaoSqlite extends DatabaseConnection implements NodeUpdat
 
 				ResultSet rs = executeQuery(ps);
 				while (rs.next()) {
-					Watcher.Event.EventType type = Watcher.Event.EventType.valueOf(rs.getString("type"));
+					Watcher.Event.Type type = Watcher.Event.Type.valueOf(rs.getString("type"));
 					String path = rs.getString("path");
 					long timestamp = rs.getLong("timestamp");
 					int broker = rs.getInt("broker");
