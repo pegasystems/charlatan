@@ -1,20 +1,20 @@
 package com.pega.charlatan.server.io;
 
 import com.pega.charlatan.io.ZookeeperWriter;
-import org.apache.zookeeper.data.Stat;
+import com.pega.charlatan.node.bean.NodeState;
 
 import java.io.IOException;
 
 public class ExistResponse extends Response{
-	private Stat stat;
+	private NodeState nodeState;
 
-	public ExistResponse(Stat stat) {
-		this.stat = stat;
+	public ExistResponse(NodeState nodeState) {
+		this.nodeState = nodeState;
 	}
 
 	@Override
 	public void serialize(ZookeeperWriter writer) throws IOException {
 		super.serialize(writer);
-		stat.serialize(writer);
+		nodeState.serialize(writer);
 	}
 }

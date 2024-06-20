@@ -6,8 +6,8 @@ import com.pega.charlatan.node.service.NodeServiceImpl;
 import com.pega.charlatan.server.session.bean.Session;
 import com.pega.charlatan.server.session.service.SessionService;
 import com.pega.charlatan.watches.service.WatchService;
-import org.apache.zookeeper.CreateMode;
-import org.apache.zookeeper.KeeperException;
+import com.pega.charlatan.node.bean.CreateMode;
+import com.pega.charlatan.utils.CharlatanException;
 import org.jboss.netty.bootstrap.ServerBootstrap;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.channel.*;
@@ -98,8 +98,8 @@ public class CharlatanNettyServer {
 
 			// Try to create root node.
 			try {
-				nodeService.create(0, "/", null, null, CreateMode.PERSISTENT);
-			} catch (KeeperException ignore) {
+				nodeService.create(0, "/", null, CreateMode.PERSISTENT);
+			} catch (CharlatanException ignore) {
 				// Ignore if root node already exists
 			}
 

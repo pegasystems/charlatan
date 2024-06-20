@@ -98,7 +98,7 @@ public abstract class OpResult {
 
     /**
      * A result from a setData operation.  This kind of result provides access
-     * to the Stat structure from the update.
+     * to the NodeState structure from the update.
      */
     public static class SetDataResult extends OpResult {
         private Stat stat;

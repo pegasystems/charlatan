@@ -5,9 +5,9 @@ import com.pega.charlatan.node.dao.NodeDao;
 import com.pega.charlatan.node.dao.RecordNotFoundException;
 import com.pega.charlatan.utils.Service;
 import com.pega.charlatan.node.bean.Node;
-import org.apache.zookeeper.CreateMode;
-import org.apache.zookeeper.data.Stat;
 
+import com.pega.charlatan.node.bean.CreateMode;
+import com.pega.charlatan.node.bean.NodeState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -66,7 +66,7 @@ public class NodeDaoSqlite extends DatabaseConnection implements NodeDao {
 	public boolean delete(Node node) {
 		String sql = "DELETE FROM nodes WHERE name=?";
 
-		boolean hasVersion = node.getStat().getVersion() >= 0;
+		boolean hasVersion = node.getState().getVersion() >= 0;
 
 		if (hasVersion)
 			sql += "and version=?";
@@ -75,7 +75,7 @@ public class NodeDaoSqlite extends DatabaseConnection implements NodeDao {
 			try (PreparedStatement ps = prepareStatement(c,sql)) {
 				ps.setString(1, node.getPath());
 				if (hasVersion) {
-					ps.setInt(2, node.getStat().getVersion());
+					ps.setInt(2, node.getState().getVersion());
 				}
 				return executeUpdate(ps) > 0;
 			}
@@ -100,7 +100,7 @@ public class NodeDaoSqlite extends DatabaseConnection implements NodeDao {
 
 					byte[] data = rs.getBytes("data");
 					node.setData(data);
-					Stat stat = node.getStat();
+					NodeState stat = node.getState();
 					stat.setVersion(rs.getInt("version"));
 					stat.setCversion(rs.getInt("cversion"));
 					stat.setCtime(rs.getLong("create_time"));

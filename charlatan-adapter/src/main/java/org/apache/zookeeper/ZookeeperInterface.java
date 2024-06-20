@@ -1,20 +1,15 @@
-package com.pega.charlatan.node.service;
+package org.apache.zookeeper;
 
-
-import com.pega.charlatan.node.bean.CreateMode;
-import com.pega.charlatan.node.bean.Node;
-import com.pega.charlatan.node.bean.NodeState;
-import com.pega.charlatan.utils.CharlatanException;
-import com.pega.charlatan.watches.bean.Watcher;
+import org.apache.zookeeper.data.ACL;
+import org.apache.zookeeper.data.Stat;
 
 import java.util.List;
 
-/**
- * Created by natalia on 7/19/17.
- */
-public interface NodeService {
+public interface ZookeeperInterface {
 
-	void close(long session);
+	String create(String path, byte[] data, List<ACL> acl, CreateMode createMode) throws KeeperException;
+
+	void create(final String path, final byte[] data, final List<ACL> acl, final CreateMode createMode, final AsyncCallback.StringCallback cb, final Object ctx);
 
 	/**
 	 * Create a node with the given path and data.
@@ -46,10 +41,38 @@ public interface NodeService {
 	 *
 	 * @param path       node path
 	 * @param data       node data
+	 * @param acl        node acl
 	 * @param createMode node mode
 	 * @return the actual path of the created node
 	 */
-	String create(long session, String path, byte[] data, CreateMode createMode) throws CharlatanException;
+	String create(long session, String path, byte[] data, List<ACL> acl, CreateMode createMode) throws KeeperException;
+
+	/**
+	 * The asynchronous version of getChildren. Return the list of the children of the node of the given path.
+	 *
+	 * @param path
+	 * @param watch
+	 * @param cb
+	 * @param ctx
+	 */
+	void getChildren(String path, boolean watch, AsyncCallback.ChildrenCallback cb, Object ctx);
+
+	List<String> getChildren(String path, boolean watch) throws KeeperException;
+
+	/**
+	 * The asynchronous version of getData.
+	 */
+	void getData(String path, boolean watch, AsyncCallback.DataCallback cb, Object ctx);
+
+	byte[] getData(String path, boolean watch, Stat stat) throws KeeperException;
+
+	Stat exists(String path, boolean watch);
+
+	void setACL(String path, List<ACL> acl, int version, AsyncCallback.StatCallback cb, Object ctx);
+
+	public long getSessionId();
+
+	void close(long session);
 
 	/**
 	 * Delete the node with the given path. The call will succeed if such a node
@@ -71,26 +94,50 @@ public interface NodeService {
 	 *
 	 * @param path    the path of the node to be deleted.
 	 * @param version the expected node version.
-	 * @throws CharlatanException If the server signals an error with a non-zero
+	 * @throws KeeperException If the server signals an error with a non-zero
 	 *                         return code.
 	 */
-	void delete(String path, int version) throws CharlatanException;
+	void delete(String path, int version) throws KeeperException;
 
 	/**
-	 * Return node including  its data and state.
+	 * Return the list of the children of the node of the given path.
+	 * <p>
+	 * If the watcher isn't null and the call is successful (no exception is thrown),
+	 * a watch will be left on the node with the given path. The watch will be
+	 * triggered by a successful operation that deletes the node of the given
+	 * path or creates/delete a child under the node.
+	 * <p>
+	 * The list of children returned is not sorted and no guarantee is provided
+	 * as to its natural or lexical order.
+	 * <p>
+	 * A KeeperException with error code KeeperException.NoNode will be thrown
+	 * if no node with the given path exists.
+	 *
+	 * @param path
+	 * @param watcher
+	 * @return an unordered array of children of the node with the given path
+	 * @throws KeeperException If the server signals an error with a non-zero error code.
+	 */
+	List<String> getChildren(String path, Watcher watcher) throws KeeperException;
+
+	/**
+	 * Return the data and the stat of the node of the given path.
 	 * <p>
 	 * If the watch is true and the call is successful (no exception is
 	 * thrown), a watch will be left on the node with the given path. The watch
-	 * will be triggered by a successful operation that corresponds Watcher.Type.
+	 * will be triggered by a successful operation that sets data on the node, or
+	 * deletes the node.
 	 * <p>
-	 * A CharlatanException with error code CharlatanException.NoNode will be thrown
+	 * A KeeperException with error code KeeperException.NoNode will be thrown
 	 * if no node with the given path exists.
 	 *
 	 * @param path  the given path
-	 * @return node details
-	 * @throws CharlatanException If the server signals an error with a non-zero error code
+	 * @param watch whether need to watch this node
+	 * @param stat  the stat of the node
+	 * @return the data of the node
+	 * @throws KeeperException If the server signals an error with a non-zero error code
 	 */
-	Node getNode(String path, Watcher watcher, Watcher.Type watchType) throws CharlatanException;
+	byte[] getData(String path, Watcher watch, Stat stat) throws KeeperException;
 
 	/**
 	 * Set the data for the node of the given path if such a node exists and the
@@ -110,9 +157,9 @@ public interface NodeService {
 	 * @param data    the data to set
 	 * @param version the expected matching version
 	 * @return the state of the node
-	 * @throws CharlatanException If the server signals an error with a non-zero error code.
+	 * @throws KeeperException If the server signals an error with a non-zero error code.
 	 */
-	NodeState setData(String path, byte[] data, int version) throws CharlatanException;
+	Stat setData(String path, byte[] data, int version) throws KeeperException;
 
 	/**
 	 * Return the stat of the node of the given path. Return null if no such a
@@ -128,7 +175,7 @@ public interface NodeService {
 	 * @return the stat of the node of the given path; return null if no such a
 	 * node exists.
 	 */
-	NodeState exists(String path, Watcher watcher);
+	Stat exists(String path, Watcher watcher);
 
 	void removeEphemeralSessionNodes(long session);
 

@@ -1,7 +1,7 @@
 package com.pega.charlatan.watches.service;
 
-import org.apache.zookeeper.WatchedEvent;
-import org.apache.zookeeper.Watcher;
+import com.pega.charlatan.watches.bean.WatchedEvent;
+import com.pega.charlatan.watches.bean.Watcher;
 
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
@@ -55,7 +55,7 @@ public abstract class WatchService {
 		watchesNotifier.processWatchedEvent(event, false);
 
 		//Only emitter session is interested in None event
-		if (event.getType() != Watcher.Event.EventType.None) {
+		if (event.getType() != Watcher.Event.Type.None) {
 			communicateEvent(event);
 		}
 	}
@@ -72,7 +72,7 @@ public abstract class WatchService {
 
 	;
 
-	public void registerWatch(Watcher watcher, Watcher.WatcherType type, String path) {
+	public void registerWatch(Watcher watcher, Watcher.Type type, String path) {
 		switch (type) {
 			case Children:
 				watchCache.registerChildWatch(watcher, path);

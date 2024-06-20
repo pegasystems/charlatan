@@ -25,7 +25,7 @@ import com.pega.charlatan.io.ZookeeperReader;
 
 public class ACL implements Deserializable {
 	private int perms;
-	private org.apache.zookeeper.data.Id id;
+	private Id id;
 
 	public ACL() {
 	}

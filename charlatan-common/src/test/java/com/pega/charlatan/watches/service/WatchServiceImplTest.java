@@ -3,7 +3,7 @@ package com.pega.charlatan.watches.service;
 import com.pega.charlatan.node.bean.NodeUpdate;
 import com.pega.charlatan.utils.NamedThreadFactory;
 import com.pega.charlatan.watches.dao.NodeUpdateDao;
-import org.apache.zookeeper.Watcher;
+import com.pega.charlatan.watches.bean.Watcher;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -20,9 +20,9 @@ public class WatchServiceImplTest {
 	private static long timestamp1 = 1504082581000l; //August 30, 2017 8:43:01 AM
 	private static long timestamp2 = 1504083600000l; //August 30, 2017 9:00:00 AM
 
-	private static NodeUpdate update1WithTimestamp1 = new NodeUpdate(Watcher.Event.EventType.NodeCreated, "/test/child1", timestamp1, 2);
-	private static NodeUpdate update2WithTimestamp2 = new NodeUpdate(Watcher.Event.EventType.NodeCreated, "/test/child2", timestamp2, 3);
-	private static NodeUpdate update3WithTimestamp2 = new NodeUpdate(Watcher.Event.EventType.NodeCreated, "/test/child3", timestamp2, 2);
+	private static NodeUpdate update1WithTimestamp1 = new NodeUpdate(Watcher.Event.Type.NodeCreated, "/test/child1", timestamp1, 2);
+	private static NodeUpdate update2WithTimestamp2 = new NodeUpdate(Watcher.Event.Type.NodeCreated, "/test/child2", timestamp2, 3);
+	private static NodeUpdate update3WithTimestamp2 = new NodeUpdate(Watcher.Event.Type.NodeCreated, "/test/child3", timestamp2, 2);
 
 	private static Set<NodeUpdate> updatesWithTimestamp1_1 = new HashSet<>();
 	private static Set<NodeUpdate> updatesWithTimestamp2_1 = new HashSet<>();

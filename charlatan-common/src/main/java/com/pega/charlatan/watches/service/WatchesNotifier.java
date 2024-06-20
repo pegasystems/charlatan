@@ -1,7 +1,8 @@
 package com.pega.charlatan.watches.service;
 
-import org.apache.zookeeper.WatchedEvent;
-import org.apache.zookeeper.Watcher;
+
+import com.pega.charlatan.watches.bean.WatchedEvent;
+import com.pega.charlatan.watches.bean.Watcher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

@@ -27,7 +27,7 @@ public class NodeDaoRestClient extends NettyClient implements NodeDao {
 	@Override
 	public boolean delete(Node node) {
 		try {
-			return sendMessage(HttpMethod.DELETE, "/nodes/" + encodePath(node.getPath()) + "?version=" + node.getStat().getVersion(), Boolean.class);
+			return sendMessage(HttpMethod.DELETE, "/nodes/" + encodePath(node.getPath()) + "?version=" + node.getState().getVersion(), Boolean.class);
 		} catch (IOException | RecordNotFoundException e) {
 			throw new DataAccessException("Failed to delete requested node", e);
 		}

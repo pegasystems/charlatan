@@ -1,7 +1,5 @@
 package com.pega.charlatan.node.bean;
 
-import org.apache.zookeeper.CreateMode;
-import org.apache.zookeeper.data.Stat;
 
 import java.util.List;
 import java.util.Objects;
@@ -30,7 +28,7 @@ public class Node {
 	 */
 	private byte[] data;
 
-	private Stat stat;
+	private NodeState state;
 
 	public Node(){}
 
@@ -60,7 +58,7 @@ public class Node {
 		this.path = path;
 		this.data = data;
 		this.mode = mode;
-		this.stat = new Stat();
+		this.state = new NodeState();
 	}
 
 	public String getPath() {
@@ -112,7 +110,7 @@ public class Node {
 			return Objects.equals(this.path, n.path)
 					&& Objects.equals(this.children, n.children)
 					&& Objects.equals(this.data, n.data)
-					&& Objects.equals(this.stat, n.stat)
+					&& Objects.equals(this.state, n.state)
 					&& Objects.equals(this.mode, n.mode);
 		}
 
@@ -127,7 +125,7 @@ public class Node {
 		this.children = children;
 	}
 
-	public Stat getStat() {
-		return stat;
+	public NodeState getState() {
+		return state;
 	}
 }

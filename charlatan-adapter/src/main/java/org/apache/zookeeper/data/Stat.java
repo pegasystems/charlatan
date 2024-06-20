@@ -195,7 +195,6 @@ public class Stat implements Serializable {
 		this.dataLength = stat.dataLength;
 		this.ephemeralOwner = stat.ephemeralOwner;
 		this.numChildren = stat.numChildren;
-
 	}
 
 	public String toString() {

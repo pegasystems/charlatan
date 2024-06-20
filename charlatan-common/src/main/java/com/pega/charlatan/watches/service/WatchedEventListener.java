@@ -1,6 +1,7 @@
 package com.pega.charlatan.watches.service;
 
-import org.apache.zookeeper.WatchedEvent;
+
+import com.pega.charlatan.watches.bean.WatchedEvent;
 
 /**
  * Created by natalia on 7/17/17.

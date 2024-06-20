@@ -2,7 +2,7 @@ package com.pega.charlatan.server.io;
 
 import com.pega.charlatan.io.Deserializable;
 import com.pega.charlatan.io.ZookeeperReader;
-import org.apache.zookeeper.data.ACL;
+import com.pega.charlatan.node.bean.ACL;
 
 import java.io.IOException;
 import java.util.ArrayList;

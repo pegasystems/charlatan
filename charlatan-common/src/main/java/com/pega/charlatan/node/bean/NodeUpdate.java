@@ -1,6 +1,6 @@
 package com.pega.charlatan.node.bean;
 
-import org.apache.zookeeper.Watcher.Event.EventType;
+import com.pega.charlatan.watches.bean.Watcher.Event.Type;
 
 import java.util.Objects;
 
@@ -8,7 +8,7 @@ import java.util.Objects;
  * Created by natalia on 7/17/17.
  */
 public class NodeUpdate {
-	private EventType eventType;
+	private Type type;
 	private String path;
 	private long timestamp;
 	private int emitterId;
@@ -16,20 +16,20 @@ public class NodeUpdate {
 	public NodeUpdate() {
 	}
 
-	public NodeUpdate(EventType eventType, String path, long timestamp, int emitterId) {
+	public NodeUpdate(Type type, String path, long timestamp, int emitterId) {
 
-		this.eventType = eventType;
+		this.type = type;
 		this.path = path;
 		this.timestamp = timestamp;
 		this.emitterId = emitterId;
 	}
 
-	public EventType getEventType() {
-		return eventType;
+	public Type getType() {
+		return type;
 	}
 
-	public void setEventType(EventType eventType) {
-		this.eventType = eventType;
+	public void setType(Type type) {
+		this.type = type;
 	}
 
 	public String getPath() {
@@ -58,14 +58,14 @@ public class NodeUpdate {
 
 	@Override
 	public String toString() {
-		return eventType + " [" + path + "]";
+		return type + " [" + path + "]";
 	}
 
 	@Override
 	public boolean equals(Object obj) {
 		if (obj instanceof NodeUpdate) {
 			NodeUpdate other = (NodeUpdate) obj;
-			return Objects.equals(eventType, other.getEventType()) && Objects.equals(path, other.getPath()) && Objects.equals(timestamp, other.getTimestamp())
+			return Objects.equals(type, other.getType()) && Objects.equals(path, other.getPath()) && Objects.equals(timestamp, other.getTimestamp())
 					&& Objects.equals(emitterId, other.getEmitterId());
 		}
 		return false;
@@ -73,6 +73,6 @@ public class NodeUpdate {
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(eventType, emitterId, path, timestamp);
+		return Objects.hash(type, emitterId, path, timestamp);
 	}
 }

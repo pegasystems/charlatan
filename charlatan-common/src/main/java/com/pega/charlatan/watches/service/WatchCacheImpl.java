@@ -1,6 +1,7 @@
 package com.pega.charlatan.watches.service;
 
-import org.apache.zookeeper.Watcher;
+
+import com.pega.charlatan.watches.bean.Watcher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,8 +44,8 @@ public class WatchCacheImpl implements WatchCache {
 	}
 
 	@Override
-	public Set<Watcher> materialize(Watcher.Event.KeeperState state,
-									Watcher.Event.EventType type,
+	public Set<Watcher> materialize(Watcher.Event.State state,
+									Watcher.Event.Type type,
 									String clientPath) {
 		Set<Watcher> result = new HashSet<Watcher>();
 

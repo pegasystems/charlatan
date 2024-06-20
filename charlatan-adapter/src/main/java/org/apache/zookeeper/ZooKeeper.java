@@ -23,6 +23,7 @@ import com.pega.charlatan.node.service.NodeService;
 import com.pega.charlatan.node.service.NodeServiceImpl;
 import com.pega.charlatan.server.session.bean.Session;
 import com.pega.charlatan.utils.ZookeeperClassLoader;
+import com.pega.charlatan.utils.ZookeeperNodeService;
 import org.apache.zookeeper.data.ACL;
 import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
@@ -40,7 +41,7 @@ public class ZooKeeper implements ZookeeperInterface {
 
 	private static Logger logger = LoggerFactory.getLogger(ZooKeeper.class);
 	private final ExecutorService executor;
-	private NodeService nodeService;
+	private ZookeeperNodeService nodeService;
 	private BrokerMonitorService brokerMonitorService;
 	private long session;
 	private Watcher defaultWatcher;
@@ -63,9 +64,11 @@ public class ZooKeeper implements ZookeeperInterface {
 
 		brokerMonitorService = new BrokerMonitorService(session, ZookeeperClassLoader.getSessionDaoImpl(), this);
 
-		this.nodeService = new NodeServiceImpl(
+		NodeService ns = new NodeServiceImpl(
 				ZookeeperClassLoader.getNodeDao(),
 				ZookeeperClassLoader.getWatchService());
+
+		this.nodeService = new ZookeeperNodeService(ns);
 
 		executor.submit(new Runnable() {
 			@Override
